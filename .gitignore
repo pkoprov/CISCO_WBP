@@ -1,2 +1,5 @@
 .idea/
 *.log
+*.json
+quickstart.py
+testing from gdrive.py
