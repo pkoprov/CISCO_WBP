@@ -12,8 +12,10 @@ import pandas as pd
 
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z', 'Avg']
-datafr = pd.read_csv(r".\VF-2_2\VF-2-2 wTool\2021_12_23 21-09-59_VF-2-2_with tool.csv", names=colnames, skiprows=1)
+datafr = pd.read_csv("VF-2-1 wTool/12_28/2021_12_28 16-46-07_VF-2-1_with tool.csv", names=colnames, skiprows=1)
+x= datafr['X'] - datafr['X'].mean()
 y= datafr['Y'] - datafr['Y'].mean()
+z= datafr['Z'] - datafr['Z'].mean()
 size = datafr.shape[0]
 signal_length = 12 #[ seconds ]
 sample_rate = size /signal_length # sampling rate [Hz]
@@ -23,8 +25,10 @@ t = np.arange(0, signal_length , dt) #the time vector
 n_t = len(t) # length of time vector
 
 # compute fourier transform
-y = np.array(y)
-f = fft(y)
+for coord in ('x','y','z'):
+    globals()[coord] = np.array(globals()[coord])
+    f = fft(y)
+    global f'f{coord}'
 
 # work out meaningful frequencies in fourier transform
 
