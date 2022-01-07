@@ -12,43 +12,48 @@ import pandas as pd
 
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z', 'Avg']
-datafr = pd.read_csv("VF-2-1 wTool/12_28/2021_12_28 16-46-07_VF-2-1_with tool.csv", names=colnames, skiprows=1)
-x= datafr['X'] - datafr['X'].mean()
-y= datafr['Y'] - datafr['Y'].mean()
-z= datafr['Z'] - datafr['Z'].mean()
-size = datafr.shape[0]
-signal_length = 12 #[ seconds ]
-sample_rate = size /signal_length # sampling rate [Hz]
-dt = 1.0/ sample_rate # time between two samples [s]
-df = 1/ signal_length # frequency between points in frequency domain [Hz]
-t = np.arange(0, signal_length , dt) #the time vector
-n_t = len(t) # length of time vector
+datafr1 = pd.read_csv("VF-2-1 wTool/22_01_07/2022_01_07 13-12-25_VF-2-1_with tool.csv", names=colnames, skiprows=1)
+datafr2 = pd.read_csv("VF-2-1 wTool/22_01_07/2022_01_07 13-12-55_VF-2-1_with tool (not moving).csv", names=colnames, skiprows=1)
+df = (datafr1, datafr2)
+signal_length = 5 #[ seconds ]
+plt.figure(figsize=(24, 12), dpi=100)
 
-# compute fourier transform
-for coord in ('x','y','z'):
-    globals()[coord] = np.array(globals()[coord])
-    f = fft(y)
-    global f'f{coord}'
+for i, dat in enumerate(df):
 
-# work out meaningful frequencies in fourier transform
+    x= dat['X'] - dat['X'].mean()
+    y= dat['Y'] - dat['Y'].mean()
+    z= dat['Z'] - dat['Z'].mean()
 
-freqs = df * np.arange(0 ,(n_t-1)/2. , dtype ='d') #d= double precision float
-n_freq = len ( freqs )
+    # compute fourier transform
+    for coord in ('x','y','z'):
+        # here I am using globals() to call and create global variables
+        globals()[coord] = np.array(globals()[coord])
+        globals()[f'f{coord}'] = fft(globals()[coord])
 
-# plot input data y against time
-plt.figure(figsize=(24, 12), dpi=80)
-plt.subplot (2, 1, 1)
-plt.plot (t,y, label ='input data ')
-plt.xlabel ('time [s]')
-plt.ylabel ('signal ')
+    size = dat.shape[0]
+    sample_rate = size /signal_length # sampling rate [Hz]
+    dt = 1.0/ sample_rate # time between two samples [s]
+    df = 1/ signal_length # frequency between points in frequency domain [Hz]
 
-# plot frequency spectrum
-plt.subplot (2 ,1 ,2)
-plt.plot (freqs ,abs(f[0: n_freq]))
-label =('abs( fourier transform )')
-plt.xlabel ('frequency [Hz]')
-plt.ylabel ('abs(DFT( signal ))')
-plt.xticks(np.arange(min(freqs), max(freqs)+1, 10.0))
+    # here I am using globals() to call and create global variables
+    globals()[f't{i}'] = np.linspace(0, signal_length , size) #the time vector
+    globals()[f'n_t{i}'] = len(globals()[f't{i}']) # length of time vector
+    globals()[f'accel{i}'] = (x,y,z)
+    globals()[f'fft_accel{i}'] = (fx,fy,fz)
+    globals()[f'freqs{i}'] = df * np.arange(0 ,(globals()[f'n_t{i}']-1)/2. , dtype ='d') #d= double precision float
+    globals()[f'n_freq{i}'] = len ( globals()[f'freqs{i}'] )
+
+    plt.subplot(2, 2, i*2+1)
+    plt.plot(globals()[f't{i}'], globals()[f'accel{i}'][0], label='input data ')
+    plt.xlabel('time [s]')
+    plt.ylabel(f'{colnames[1]} signal')
+    plt.subplot(2, 2, i*2+2)
+    plt.plot(globals()[f'freqs{i}'], abs(globals()[f'fft_accel{i}'][0][0: globals()[f'n_freq{i}']]))
+    plt.xlabel('frequency [Hz]')
+    plt.ylabel('abs(DFT( signal ))')
+    label = ('abs( fourier transform )')
+    plt.xticks(np.arange(min(globals()[f'freqs{i}']), max(globals()[f'freqs{i}']) + 1, 10.0))
+
 
 # save plot to disk
 plt.savefig ('fft1.png')
