@@ -12,8 +12,8 @@ import pandas as pd
 
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z', 'Avg']
-datafr1 = pd.read_csv("VF-2-1 wTool/22_01_07/2022_01_07 13-12-25_VF-2-1_with tool.csv", names=colnames, skiprows=1)
-datafr2 = pd.read_csv("VF-2-1 wTool/22_01_07/2022_01_07 13-12-55_VF-2-1_with tool (not moving).csv", names=colnames, skiprows=1)
+datafr1 = pd.read_csv("VF-2-1 wTool/2022_01_07 13-12-25_VF-2-1_with tool.csv", names=colnames, skiprows=1)
+datafr2 = pd.read_csv("VF-2-1 wTool/2022_01_07 13-12-55_VF-2-1_with tool (not moving).csv", names=colnames, skiprows=1)
 df_tuple = (datafr1, datafr2)
 
 signal_length = 5 #[ seconds ]
