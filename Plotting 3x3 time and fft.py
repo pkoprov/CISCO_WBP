@@ -15,7 +15,7 @@ def draw_dt(move_name):
     for x in dt:
         plt.vlines(x, plt.ylim()[0]*0.9, plt.ylim()[1]*0.9, color = 'red')
 
-
+plt.ioff() # turn off the otput of figures
 machine="VF-2_2"
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z', 'Avg']
@@ -25,7 +25,8 @@ move_dict = {"X_fwd":[0,3],"Y_fwd":[3,4.8], "X_rvs": [4.8,7.4], "Y_rvs": [7.4,9.
 
 folder = f'./{machine} wTool/2022_01_11'
 for n,file in enumerate(os.listdir(folder)):
-    globals()[f"datafr{n}"] = pd.read_csv(f'{folder}/{file}', names=colnames, skiprows=1)
+    if os.path.isfile(f"{folder}/{file}"):
+        globals()[f"datafr{n}"] = pd.read_csv(f'{folder}/{file}', names=colnames, skiprows=1)
 
 df_tuple = (datafr0, datafr1,datafr2)
 
@@ -33,7 +34,7 @@ signal_length = 16 #[ seconds ]
 
 # create a figure window with 3 rows
 rownames = ("1st attempt", "2nd attempt", '3rd attempt')
-fig, big_axes = plt.subplots(3,1, sharey=True)
+fig, big_axes = plt.subplots(3,1, sharey=True,figsize=(20,15), dpi=200)
 fig.suptitle(machine, fontsize='xx-large')
 for n, big_ax in enumerate(big_axes):
     big_ax.set_title(rownames[n], fontsize=16, y=1.05)
@@ -42,7 +43,7 @@ for n, big_ax in enumerate(big_axes):
     # removes the white frame
     big_ax._frameon = False
 
-# create plots
+# create plots of the whole movement set
 for i, dat in enumerate(df_tuple):
 
     x= dat['X'] - dat['X'].mean()
@@ -74,8 +75,9 @@ for i, dat in enumerate(df_tuple):
     plt.xlabel('time [s]')
     plt.ylabel(f'{colnames[1]} signal')
 
+    # draw plot names only at the first row
     if i == 0:
-        plt.title('Time domain', y=1.1) # draw plot names only at the first row
+        plt.title('Time domain', y=1.1)
     for move, val in move_dict.items():
         # insert move names
         if i == 0: plt.text((val[0] + val[1]) / 2, plt.ylim()[1] * 1.05, move, ha='center')
@@ -86,11 +88,16 @@ for i, dat in enumerate(df_tuple):
     plt.plot(globals()[f'freqs{i}'], abs(globals()[f'fft_accel{i}'][0][0: globals()[f'n_freq{i}']]))
     plt.xlabel('frequency [Hz]')
     plt.ylabel('abs(DFT( signal ))')
-    plt.xticks(np.arange(min(globals()[f'freqs{i}']), max(globals()[f'freqs{i}']) + 1, 10.0),rotation = 45)
+    plt.xticks(np.arange(min(globals()[f'freqs{i}']), max(globals()[f'freqs{i}']) + 1, 10.0),rotation = 50)
     if i == 0:
         plt.title('Frequency spectrum')
 
+if not os.path.isdir(f"{folder}/plots"):
+    os.makedirs(f"{folder}/plots")
+plt.savefig(f"{folder}/plots/{machine} full movement.png")
 
+
+# function to plot time series
 def plot_time(attempt, ax:str, dt: np.array):
     # plots accel timeseries
     if ax.lower()=='x':
@@ -114,6 +121,7 @@ def plot_time(attempt, ax:str, dt: np.array):
         plt.title('Time domain')
 
 
+# function to plot fft
 def plot_fft(attempt, ax:str,dt: np.array):
     # plots accel fft
     ax = ax.lower()
@@ -143,37 +151,41 @@ def plot_fft(attempt, ax:str,dt: np.array):
         plt.title('Frequency spectrum')
 
 
-
-
 # function to plot time series and fft for specific movement and sensor axis
-def plot_specific(move_name):
+def plot_xyz(move_name):
     dt = np.array(move_dict[move_name])
     for axis in 'xyz':
-        plt.figure()
+
         for i in range(3):
             plot_time(i, axis, dt)
             plot_fft(i,axis, dt)
-        plt.suptitle(f"{machine}_{move}_{axis.capitalize()}axis of sensor", fontsize='xx-large')
+        name = f"{machine}_{move}_{axis.capitalize()}axis of sensor"
+        plt.suptitle(name, fontsize='xx-large')
+        # check if the folder "plots" exist
+        if not os.path.isdir(f"{folder}/plots"):
+            os.makedirs(f"{folder}/plots")
+        plt.savefig(f"{folder}/plots/{name}")
+        plt.clf()
 
-
+plt.figure(figsize=(20,15),dpi=200)
 # plot all moves on for each of sensor's axis
 for move, val in move_dict.items():
-    draw_dt(move)
-    plt.text((val[0] + val[1])/2, plt.ylim()[1]*1.1, move, fontsize="x-large", ha='center')
-    plot_specific(move)
+    plot_xyz(move)
+
+
 
 #
 #
 # # save plot to disk
 # plt.savefig ('VF-2_1 wTool/22_01_07/fft1.png')
 # plt.show() #and display plot on screen
-
-arrfreqs = fftfreq(len(fft_accel0X))
-print(arrfreqs.min(), arrfreqs.max())
-
-# Find the peak in the coefficients
-idx = np.argmax(np.abs(fft_accel0X))
-freq = arrfreqs[idx]
-sample_rate = round(globals()[f't{attempt}'].size /signal_length)
-freq_in_hertz = abs(freq * sample_rate )
-print(f"Dominant frequency is {round(freq_in_hertz,2)} Hz")
+#
+# arrfreqs = fftfreq(len(fft_accel0X))
+# print(arrfreqs.min(), arrfreqs.max())
+#
+# # Find the peak in the coefficients
+# idx = np.argmax(np.abs(fft_accel0X))
+# freq = arrfreqs[idx]
+# sample_rate = round(globals()[f't{attempt}'].size /signal_length)
+# freq_in_hertz = abs(freq * sample_rate )
+# print(f"Dominant frequency is {round(freq_in_hertz,2)} Hz")
