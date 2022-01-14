@@ -16,14 +16,15 @@ def draw_dt(move_name):
         plt.vlines(x, plt.ylim()[0]*0.9, plt.ylim()[1]*0.9, color = 'red')
 
 plt.ioff() # turn off the otput of figures
-machine="VF-2_2"
+machine="UR-5e_1"
 # create signal
-colnames=['TIME', 'X', 'Y', 'Z', 'Avg']
+colnames=['TIME', 'X', 'Y', 'Z']
 # dictionary containing moves and their time period
 move_dict = {"X_fwd":[0,3],"Y_fwd":[3,4.8], "X_rvs": [4.8,7.4], "Y_rvs": [7.4,9.1], "X_half-fwd":[9.1,10.8],
             "Z_dwn": [10.8, 11.9], "Z_up": [11.9, 13], "RPM": [13,15]}
 
-folder = f'./{machine} wTool/2022_01_11'
+# folder = f'./{machine} wTool' # for CNC
+folder = f'./{machine}' # for robot
 for n,file in enumerate(os.listdir(folder)):
     if os.path.isfile(f"{folder}/{file}"):
         globals()[f"datafr{n}"] = pd.read_csv(f'{folder}/{file}', names=colnames, skiprows=1)
