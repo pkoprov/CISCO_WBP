@@ -3,7 +3,7 @@
 @author: bstarly
 
 """
-import os
+import os, math
 import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq, ifft
 import numpy as np
@@ -16,12 +16,13 @@ def draw_dt(move_name):
         plt.vlines(x, plt.ylim()[0]*0.9, plt.ylim()[1]*0.9, color = 'red')
 
 plt.ioff() # turn off the otput of figures
-machine="UR-5e_1"
+machine="UR-5e_2"
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z']
 # dictionary containing moves and their time period
-move_dict = {"X_fwd":[0,3],"Y_fwd":[3,4.8], "X_rvs": [4.8,7.4], "Y_rvs": [7.4,9.1], "X_half-fwd":[9.1,10.8],
-            "Z_dwn": [10.8, 11.9], "Z_up": [11.9, 13], "RPM": [13,15]}
+# move_dict = {"X_fwd":[0,3],"Y_fwd":[3,4.8], "X_rvs": [4.8,7.4], "Y_rvs": [7.4,9.1], "X_half-fwd":[9.1,10.8], # for CNC
+#             "Z_dwn": [10.8, 11.9], "Z_up": [11.9, 13], "RPM": [13,15]}
+move_dict = {"1st move":[1.8,3.7],"2nd move":[3.7,7], "3rd move": [7,9.25], "4th move": [9.25,12]} # for robot
 
 # folder = f'./{machine} wTool' # for CNC
 folder = f'./{machine}' # for robot
@@ -29,13 +30,14 @@ for n,file in enumerate(os.listdir(folder)):
     if '.csv' in file:
         globals()[f"datafr{n}"] = pd.read_csv(f'{folder}/{file}', names=colnames, skiprows=1)
 
-df_tuple = (datafr0, datafr1,datafr2)
+df_list = [globals()[df] for df in globals() if 'datafr' in df]
 
-signal_length = 16 #[ seconds ]
+df_list = [df for i,df in enumerate(df_list) if i not in [0,4,5]] # remove shifted rows
+signal_length = math.ceil(df_list[0].shape[0] / 850) #[ seconds ]
 
-# create a figure window with 3 rows
-rownames = ("1st attempt", "2nd attempt", '3rd attempt')
-fig, big_axes = plt.subplots(3,1, sharey=True,figsize=(20,15), dpi=200)
+# create a figure window with n rows
+rownames = [f"Attempt {i+1} " for i in range(len(df_list))]
+fig, big_axes = plt.subplots(len(df_list),1, sharey=True,figsize=(20,15), dpi=200)
 fig.suptitle(machine, fontsize='xx-large')
 for n, big_ax in enumerate(big_axes):
     big_ax.set_title(rownames[n], fontsize=16, y=1.05)
@@ -45,7 +47,7 @@ for n, big_ax in enumerate(big_axes):
     big_ax._frameon = False
 
 # create plots of the whole movement set
-for i, dat in enumerate(df_tuple):
+for i, dat in enumerate(df_list):
 
     x= dat['X'] - dat['X'].mean()
     y= dat['Y'] - dat['Y'].mean()
@@ -71,7 +73,7 @@ for i, dat in enumerate(df_tuple):
     globals()[f'n_freq{i}'] = len ( globals()[f'freqs{i}'] )
 
     # plot input data y against time
-    fig.add_subplot(len(df_tuple), 2, i*2+1)
+    fig.add_subplot(len(df_list), 2, i * 2 + 1)
     plt.plot(globals()[f't{i}'], globals()[f'accel{i}'][0], label='input data ')
     plt.xlabel('time [s]')
     plt.ylabel(f'{colnames[1]} signal')
@@ -79,13 +81,23 @@ for i, dat in enumerate(df_tuple):
     # draw plot names only at the first row
     if i == 0:
         plt.title('Time domain', y=1.1)
+    # move_dict = {}
+    # move_num = int(input("Number of moves"))
+    # input("Do you want to set move time periods?")
+    # for j in range(move_num):
+    #     if j == 0:
+    #         move_dict[f"Move {j + 1}"] = [0,int(input("next tick"))]
+    #         continue
+    #     move_dict[f"Move {j+1}"] = [move_dict[f"Move {j}"][1],int(input("next tick"))]
+    #     print(move_dict)
+
     for move, val in move_dict.items():
         # insert move names
         if i == 0: plt.text((val[0] + val[1]) / 2, plt.ylim()[1] * 1.05, move, ha='center')
         draw_dt(move)
 
     # plot frequency spectrum
-    fig.add_subplot(len(df_tuple), 2, i*2+2)
+    fig.add_subplot(len(df_list), 2, i * 2 + 2)
     plt.plot(globals()[f'freqs{i}'], abs(globals()[f'fft_accel{i}'][0][0: globals()[f'n_freq{i}']]))
     plt.xlabel('frequency [Hz]')
     plt.ylabel('abs(DFT( signal ))')
