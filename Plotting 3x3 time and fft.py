@@ -25,7 +25,7 @@ move_dict = {"X_fwd":[0,3],"Y_fwd":[3,4.8], "X_rvs": [4.8,7.4], "Y_rvs": [7.4,9.
 
 folder = f'./{machine} wTool/2022_01_11'
 for n,file in enumerate(os.listdir(folder)):
-    if os.path.isfile(f"{folder}/{file}"):
+    if '.csv' in file:
         globals()[f"datafr{n}"] = pd.read_csv(f'{folder}/{file}', names=colnames, skiprows=1)
 
 df_tuple = (datafr0, datafr1,datafr2)
