@@ -12,8 +12,8 @@ import pandas as pd
 
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z', 'Avg']
-datafr1 = pd.read_csv("VF-2-1 wTool/2022_01_07 13-12-25_VF-2-1_with tool.csv", names=colnames, skiprows=1)
-datafr2 = pd.read_csv("VF-2-1 wTool/2022_01_07 13-12-55_VF-2-1_with tool (not moving).csv", names=colnames, skiprows=1)
+datafr1 = pd.read_csv("VF-2_1 wTool/2022_01_07 13-12-25_VF-2-1_with tool.csv", names=colnames, skiprows=1)
+datafr2 = pd.read_csv("VF-2_1 wTool/2022_01_07 13-12-55_VF-2-1_with tool (not moving).csv", names=colnames, skiprows=1)
 df_tuple = (datafr1, datafr2)
 
 signal_length = 5 #[ seconds ]
@@ -66,11 +66,11 @@ for i, dat in enumerate(df_tuple):
     plt.xlabel('frequency [Hz]')
     plt.ylabel('abs(DFT( signal ))')
     plt.title('Frequency spectrum')
-    plt.xticks(np.arange(min(globals()[f'freqs{i}']), max(globals()[f'freqs{i}']) + 1, 10.0))
+    plt.xticks(np.arange(min(globals()[f'freqs{i}']), max(globals()[f'freqs{i}']) + 1, 10.0), rotation =45)
 
 
 # save plot to disk
-plt.savefig ('VF-2-1 wTool/22_01_07/fft1.png')
+plt.savefig ('VF-2_1 wTool/22_01_07/fft1.png')
 plt.show() #and display plot on screen
 
 arrfreqs = fftfreq(len(fft_accel0[0]))
