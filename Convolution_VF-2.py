@@ -31,7 +31,7 @@ s = np.zeros([2,2])
 s1 = np.zeros([2,2])
 
 
-for folder in ["VF-2_2 wTool/2021_12_23"]:#, , "VF-2_1 wTool/12_27"]:
+for folder in ["VF-2_1 wTool/12_27", "VF-2_2 wTool/2021_12_23"]:#, , "VF-2_1 wTool/12_27"]:
     for num, file in enumerate(os.listdir(folder)):
         if num in range(2):
             continue
