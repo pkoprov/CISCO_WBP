@@ -1,3 +1,5 @@
+import os
+
 import serial, time, struct
 import pandas as pd
 
@@ -29,4 +31,7 @@ for j in range(6):
     print("errors",l)
 
     timestamp = time.strftime("%Y_%m_%d %H:%M:%S")
-    pd.DataFrame(y).to_csv(f'{timestamp}_VF-2-1_with tool.csv')
+    folder = timestamp[:10]
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+    pd.DataFrame(y).to_csv(f'{folder}/{timestamp}_VF-2-1_with tool.csv')
