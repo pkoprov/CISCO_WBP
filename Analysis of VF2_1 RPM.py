@@ -70,7 +70,7 @@ for i, dat in enumerate(df_tuple):
 
 
 # save plot to disk
-plt.savefig ('VF-2_1 wTool/22_01_07/fft1.png')
+plt.savefig ('VF-2_1 wTool/22_01_07_spindle only/fft1.png')
 plt.show() #and display plot on screen
 
 arrfreqs = fftfreq(len(fft_accel0[0]))

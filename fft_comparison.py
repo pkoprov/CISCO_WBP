@@ -12,7 +12,7 @@ import pandas as pd
 # create signal
 colnames=['TIME', 'X', 'Y', 'Z']
 df_list = []
-folders = ["VF-2_1 wTool/22_01_07", 'VF-2_1 wTool/22_01_07']
+folders = ["VF-2_1 wTool/22_01_07_spindle only", 'VF-2_1 wTool/22_01_07_spindle only']
 for folder in folders:
     for file in os.listdir(folder):
         try:
