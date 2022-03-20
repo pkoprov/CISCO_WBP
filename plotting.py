@@ -8,13 +8,13 @@ def reduced(df, med):
     lim = 3474/2
     if med < lim:
         zeros_quantity = int(lim - med)
-        bound = [0,int(med+lim)]
         zero_df = pd.DataFrame([[0,9.8,1]]*zeros_quantity,columns=df.columns)
+        df = df.iloc[0:int(med+lim),:]
         df = pd.concat([zero_df, df])
+        return np.array(df)
     else:
         bound = [int(med-lim),int(med+lim)]
-    answer = np.array(df[bound[0]: bound[1]])
-    return answer
+        return np.array(df[bound[0]: bound[1]])
 
 
 length = 3474
