@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
@@ -14,14 +15,25 @@ for folder in os.listdir(f"2022_02_28"):
             all_coord_df = pd.concat([df["X"],df["Y"],df["Z"],pd.Series(file[-11:-4])],ignore_index=True)
             df_UR5= pd.concat([df_UR5,all_coord_df],axis=1, ignore_index=True)
 
-df_UR5 = df_UR5.transpose()
-targets = df_UR5.iloc[:,-1].unique()
-x = StandardScaler().fit_transform(df_UR5.iloc[:,:-1])
+df_UR5_4 = df_UR5.iloc[:,:6].transpose()
+mu4 = np.mean(df_UR5.iloc[:-1,:6], axis=1)
+x4 = df_UR5_4.iloc[:,:-1]-mu4
+x = np.array(x4)
+S,V,D = np.linalg.svd(x)
+
+df_UR5 = df_UR5.iloc[:,6:].transpose()
+# df_UR5 = df_UR5.transpose()
+# targets = df_UR5.iloc[:,-1].unique()
+# x = StandardScaler().fit_transform(df_UR5.iloc[:,:-1])
+UR5_4 = StandardScaler().fit_transform(df_UR5_4.iloc[:,:-1])
+mu4 = np.mean(UR5_4, axis=1)
+
 #############################################################
 # 2 Principal components
 #############################################################
 pca = PCA(n_components=2)
-principalComponents = pca.fit_transform(x)
+# principalComponents = pca.fit_transform(x)
+principalComponents = pca.fit_transform(UR5_4)
 principalDf = pd.DataFrame(data = principalComponents, columns = ['PC1', 'PC2'])
 
 fig = plt.figure()
@@ -30,6 +42,10 @@ ax.set_xlabel('Principal Component 1', fontsize = 15)
 ax.set_ylabel('Principal Component 2', fontsize = 15)
 ax.set_title('2 component PCA with XYZ', fontsize = 20)
 colors = ['r', 'g', 'b', 'k']
+ax.scatter(principalDf['PC1'], principalDf['PC2'], c = 'r', s = 50)
+ax.legend(targets)
+ax.grid()
+
 
 for target, color in zip(targets,colors):
     indicesToKeep = df_UR5.iloc[:,-1] == target
