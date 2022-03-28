@@ -92,10 +92,10 @@ for i in [0,1,2]:
 plt.legend(["UR5_1","UR5_4","UR5_3","UR5_2"])
 
 #############################################################
-# projecting on UR5_3 PC
+# projecting on UR5_2 PC
 #############################################################
 fig()
-plt.title(f'Projection on 2 PC of UR5_3_X',fontsize = 20)
+plt.title(f'Projection on 2 PC of UR5_2_X',fontsize = 20)
 
 plt.scatter(PCA2[0],PCA2[1], c = colors[2])
 
@@ -104,12 +104,12 @@ for i in [0,1,3]:
     plt.scatter(PCS[0],PCS[1], c = colors[i])
 
 
-plt.legend(["UR5_3","UR5_4","UR5_2","UR5_1"])
+plt.legend(["UR5_2","UR5_4","UR5_3","UR5_1"])
 #############################################################
-# projecting on UR5_2 PC
+# projecting on UR5_3 PC
 #############################################################
 fig()
-plt.title(f'Projection on 2 PC of UR5_2_X',fontsize = 20)
+plt.title(f'Projection on 2 PC of UR5_3_X',fontsize = 20)
 
 plt.scatter(PCA1[0],PCA1[1], c = colors[1])
 
@@ -118,7 +118,7 @@ for i,c in zip([0,2,3], "bkg"):
     plt.scatter(PCS[0],PCS[1], c = colors[i])
 
 
-plt.legend(["UR5_2","UR5_4","UR5_2","UR5_1"])
+plt.legend(["UR5_3","UR5_4","UR5_2","UR5_1"])
 
 
 # df = df_UR5_x.iloc[:-1,:6].transpose()
