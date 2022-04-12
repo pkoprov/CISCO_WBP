@@ -1,6 +1,10 @@
-from machine import I2C, Pin, reset
+import struct
+import sys
+import time
+
+from machine import I2C, Pin
+
 from mpu9250 import MPU9250
-import sys, time, struct
 
 # addresses 
 icl_id = 1
@@ -12,33 +16,21 @@ i2c = I2C(id=icl_id, scl=scl, sda=sda)
 
 # Scan the bus
 m = MPU9250(i2c)
+
+start = time.time()
+calibration_data = []
+while time.time() - start <= 1:
+    calibration_data.append(m.acceleration[1])
+mean = sum(calibration_data) / len(calibration_data)
+sd = (sum([(i - mean) ** 2 for i in calibration_data]) / len(calibration_data)) ** 0.5
+
 # main loop
 while True:
     # read the input
-    CMD = sys.stdin.buffer.readline()
-    if CMD == None:
-        continue
-    elif 'exit' in CMD.decode():
-        reset()
-    else:
-        # check if the input is integer
+    ax, ay, az = m.acceleration
+    if ax[1] > mean + 5 * sd or ax[1] < mean - 5 * sd:
         try:
-            time_del = int(CMD)
-        except (ValueError):
-            print("Incorrect time data type")
-            continue
-        #write to file
-#         with open('buf.csv','w') as file:
-        n=0 # count of measurements
-            # set the duration of data collection
-        start_time = time.time()
-        while (time.time()- start_time) < (time_del+2):
-            ax, ay, az = m.acceleration
-#                 file.write('%sl\n' % m.acceleration)
-            n += 1
-            sys.stdout.write(struct.pack('3d', ax,ay,az)+'||'.encode())
-    #             print('')
-    #             print(m.acceleration)
-        print('stop',n)
-
-print('end of code')
+            sys.stdout.write(struct.pack('3d', ax, ay, az) + '\n'.encode())
+        except:
+            print("Not working!")
+            time.sleep(1)
