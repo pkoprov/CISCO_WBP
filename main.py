@@ -4,7 +4,7 @@ import time
 
 from machine import I2C, Pin
 
-from mpu9250 import MPU9250
+from mpu6550 import MPU6500
 
 # addresses 
 icl_id = 1
@@ -15,7 +15,7 @@ scl = Pin(19)
 i2c = I2C(id=icl_id, scl=scl, sda=sda)
 
 # Scan the bus
-m = MPU9250(i2c)
+m = MPU6500(i2c)
 
 start = time.time()
 calibration_data = []
