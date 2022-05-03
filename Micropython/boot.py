@@ -10,7 +10,7 @@ from mpu6500 import MPU6500
 
 
 gc.collect()
-# addresses
+# addresses 
 icl_id = 1
 sda = Pin(18)
 scl = Pin(19)
