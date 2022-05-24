@@ -27,7 +27,7 @@ MicroPython I2C driver for MPU9250 9-axis motion tracking device
 # pylint: disable=import-error
 from micropython import const
 from Micropython.mpu6500 import MPU6500
-from ak8963 import AK8963
+from Micropython.ak8963 import AK8963
 # pylint: enable=import-error
 
 __version__ = "0.3.0"
