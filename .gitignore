@@ -1,6 +1,8 @@
 .idea/
 *.log
 *.json
-quickstart.py
-testing from gdrive.py
 *.png
+.RData
+.Rhistory
+test.m
+*.Rproj
