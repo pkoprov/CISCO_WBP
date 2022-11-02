@@ -1,10 +1,26 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import serial
+from serial.tools.list_ports import comports
 
-ser = serial.Serial("/dev/ttyACM1", baudrate=115200, timeout=0.1)
 
-n = 6
+for n, port in enumerate(comports()):
+    print(f"{n}.", port[1])
+
+while True:
+    try:
+        port_num = int(input("Pick the port#: "))
+        port = comports()[port_num]
+        print(f"Chosen port is {port[1]}")
+        break
+    except ValueError as er:
+        print(er)
+        print("Enter integer")
+
+# ser = serial.Serial("/dev/ttyACM1", baudrate=115200, timeout=0.1)
+ser = serial.Serial(port[0], baudrate=115200, timeout=0.1)
+
+n = 1
 name = "Kernel1"
 for i in range(n):
     try:
