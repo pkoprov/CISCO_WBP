@@ -15,11 +15,12 @@ icl_id = 1
 sda = Pin(18)
 scl = Pin(19)
 
-# create the I2C
+# create the I2C instance
 i2c = I2C(id=icl_id, scl=scl, sda=sda)
 
 # Scan the bus
 m = MPU6500(i2c)
 
+# Turn LED on to indicate the finish of setup
 led = Pin(25, Pin.OUT)
 led.value(1)
