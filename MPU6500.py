@@ -8,47 +8,45 @@ __version__ = "0.3.0"
 # pylint: disable=import-error
 import struct
 import time
-# from smbus2 import SMBus, i2c_msg
 # from machine import I2C, Pin
-from micropython import const
 
 # pylint: enable=import-error
 
-_GYRO_CONFIG = const(0x1b)
-_ACCEL_CONFIG = const(0x1c)
-_ACCEL_CONFIG2 = const(0x1d)
-_ACCEL_XOUT_H = const(0x3b)
-_ACCEL_XOUT_L = const(0x3c)
-_ACCEL_YOUT_H = const(0x3d)
-_ACCEL_YOUT_L = const(0x3e)
-_ACCEL_ZOUT_H = const(0x3f)
-_ACCEL_ZOUT_L = const(0x40)
-_TEMP_OUT_H = const(0x41)
-_TEMP_OUT_L = const(0x42)
-_GYRO_XOUT_H = const(0x43)
-_GYRO_XOUT_L = const(0x44)
-_GYRO_YOUT_H = const(0x45)
-_GYRO_YOUT_L = const(0x46)
-_GYRO_ZOUT_H = const(0x47)
-_GYRO_ZOUT_L = const(0x48)
-_WHO_AM_I = const(0x75)
+_GYRO_CONFIG =  0x1b
+_ACCEL_CONFIG =  0x1c
+_ACCEL_CONFIG2 =  0x1d
+_ACCEL_XOUT_H =  0x3b
+_ACCEL_XOUT_L =  0x3c
+_ACCEL_YOUT_H =  0x3d
+_ACCEL_YOUT_L =  0x3e
+_ACCEL_ZOUT_H =  0x3f
+_ACCEL_ZOUT_L =  0x40
+_TEMP_OUT_H =  0x41
+_TEMP_OUT_L =  0x42
+_GYRO_XOUT_H =  0x43
+_GYRO_XOUT_L =  0x44
+_GYRO_YOUT_H =  0x45
+_GYRO_YOUT_L =  0x46
+_GYRO_ZOUT_H =  0x47
+_GYRO_ZOUT_L =  0x48
+_WHO_AM_I =  0x75
 
-# _ACCEL_FS_MASK = const(0b00011000)
-ACCEL_FS_SEL_2G = const(0b00000000)
-ACCEL_FS_SEL_4G = const(0b00001000)
-ACCEL_FS_SEL_8G = const(0b00010000)
-ACCEL_FS_SEL_16G = const(0b00011000)
+# _ACCEL_FS_MASK =  0b00011000
+ACCEL_FS_SEL_2G =  0b00000000
+ACCEL_FS_SEL_4G =  0b00001000
+ACCEL_FS_SEL_8G =  0b00010000
+ACCEL_FS_SEL_16G =  0b00011000
 
 _ACCEL_SO_2G = 16384  # 1 / 16384 ie. 0.061 mg / digit
 _ACCEL_SO_4G = 8192  # 1 / 8192 ie. 0.122 mg / digit
 _ACCEL_SO_8G = 4096  # 1 / 4096 ie. 0.244 mg / digit
 _ACCEL_SO_16G = 2048  # 1 / 2048 ie. 0.488 mg / digit
 
-# _GYRO_FS_MASK = const(0b00011000)
-GYRO_FS_SEL_250DPS = const(0b00000000)
-GYRO_FS_SEL_500DPS = const(0b00001000)
-GYRO_FS_SEL_1000DPS = const(0b00010000)
-GYRO_FS_SEL_2000DPS = const(0b00011000)
+# _GYRO_FS_MASK =  0b00011000
+GYRO_FS_SEL_250DPS =  0b00000000
+GYRO_FS_SEL_500DPS =  0b00001000
+GYRO_FS_SEL_1000DPS =  0b00010000
+GYRO_FS_SEL_2000DPS =  0b00011000
 
 _GYRO_SO_250DPS = 131
 _GYRO_SO_500DPS = 62.5
@@ -77,7 +75,7 @@ class MPU6500:
         self.address = address
 
         # 0x70 = standalone MPU6500, 0x71 = MPU6250 SIP
-        if self.whoami not in [0x71, 0x70]:
+        if self.whoami not in [0x71, 0x70, 0x68]:
             raise RuntimeError("MPU6500 not found in I2C bus.")
 
         self._accel_so = self._accel_fs(accel_fs)
@@ -150,23 +148,23 @@ class MPU6500:
 
     def _register_short(self, register, value=None, buf=bytearray(2)):
         if value is None:
-            self.i2c.readfrom_mem_into(self.address, register, buf)
+            buf = self.i2c.read_block_data(self.address, register)
             return struct.unpack(">h", buf)[0]
 
         struct.pack_into(">h", buf, 0, value)
-        return self.i2c.writeto_mem(self.address, register, buf)
+        return self.i2c.write_block_data(self.address, register, buf)
 
     def _register_three_shorts(self, register, buf=bytearray(6)):
-        self.i2c.readfrom_mem_into(self.address, register, buf)
+        buf = self.i2c.read_block_data(self.address, register)
         return struct.unpack(">hhh", buf)
 
     def _register_char(self, register, value=None, buf=bytearray(1)):
         if value is None:
-            self.i2c.readfrom_mem_into(self.address, register, buf)
+            buf = hex(self.i2c.read_block_data(self.address, register))
             return buf[0]
 
         struct.pack_into("<b", buf, 0, value)
-        return self.i2c.writeto_mem(self.address, register, buf)
+        return self.i2c.write_block_data(self.address, register, buf)
 
     def _accel_fs(self, value):
         self._register_char(_ACCEL_CONFIG, value)
