@@ -49,7 +49,7 @@ def measurement_steady():
         data.append([ax, ay, az])
         if not (ax > mean + 4*sd or ax < mean - 4*sd):
             n += 1
-            if n == 100:
+            if n == 500:
                 print("Stop reading")
                 break
         else:
@@ -61,7 +61,7 @@ n = int(input("How many times? "))
 i = 1
 duration = int(input("Approximate duration of move in sec? "))
 
-asset_name = input("Name of printer? ")
+asset_name = input("Name of machine? ")
 try:
     os.mkdir(f'./data/Kernels/{datetime.now().date().strftime("%Y_%m_%d")}')
 except FileExistsError:
@@ -79,10 +79,13 @@ while i < n+1:
     df = pd.DataFrame(data[:-100])
     if len(df) < 500*duration:
         continue
-        
+    
     df.to_csv(f"{folder}/{sample_name}.csv")
+    fig = plt.figure(sample_name)
+    fig.set_size_inches(18.5,10)
     plt.plot(data)
-    plt.savefig(f"{folder}/{sample_name}.svg")
+    plt.plot(data)
+    plt.savefig(f"{folder}/{sample_name}.png")
     plt.close()
     print(f"Created {sample_name}_{i}")
     i += 1
