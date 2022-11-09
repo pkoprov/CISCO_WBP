@@ -87,7 +87,7 @@ while i < n+1:
     plt.plot(data)
     plt.savefig(f"{folder}/{sample_name}.png")
     plt.close()
-    print(f"Created {sample_name}_{i}")
+    print(f"Created {sample_name}")
     i += 1
 
 print("Done Collecting samples")
