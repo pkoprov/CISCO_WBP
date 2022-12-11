@@ -12,7 +12,7 @@ mpu = MPU9250(
     address_mpu_slave=None, 
     bus=1,
     gfs=GFS_1000, 
-    afs=AFS_8G, 
+    afs=AFS_4G, 
     mfs=AK8963_BIT_16, 
     mode=AK8963_MODE_C100HZ)
 
