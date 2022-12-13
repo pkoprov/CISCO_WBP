@@ -1,0 +1,49 @@
+import os
+
+import matplotlib.pyplot as plt
+import matplotlib.transforms as transforms
+import numpy as np
+import pandas as pd
+from matplotlib.patches import Ellipse, Patch
+from sklearn import metrics, svm, neighbors
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+
+length = 8954
+
+asset_type = "VF-2"
+coord_list = ['all', 'x', 'y', 'z']
+# create global variables to store x,y,z and xyz data
+var_name = "VF2"
+for i in range(4):
+    globals()[f'df_{var_name}_{coord_list[i]}'] = pd.DataFrame()
+
+home = "data/Kernels/2022_11_28"
+
+for folder in os.listdir(home):
+    # if "_ex" in folder:
+    if os.path.isdir(f"{home}/{folder}"):
+        if asset_type in folder:
+            for file in os.listdir(f"{home}/{folder}"):
+                if '.csv' in file:
+                    df = pd.read_csv(f"{home}/{folder}/{file}")
+                    type = pd.Series(folder)
+                    X = df.iloc[:length, 1]
+                    Y = df.iloc[:length, 2]
+                    Z = df.iloc[:length, 3]
+                    all_coord_df = pd.concat([type, X, Y, Z], ignore_index=True)
+                    x_coord_df = pd.concat([type,X], ignore_index=True)
+                    y_coord_df = pd.concat([type, Y], ignore_index=True)
+                    z_coord_df = pd.concat([type, Z], ignore_index=True)
+                    globals()[f'df_{var_name}_all'] = pd.concat([globals()[f'df_{var_name}_all'], all_coord_df], axis=1, ignore_index=True)
+                    globals()[f'df_{var_name}_x'] = pd.concat([globals()[f'df_{var_name}_x'], x_coord_df], axis=1, ignore_index=True)
+                    globals()[f'df_{var_name}_y'] = pd.concat([globals()[f'df_{var_name}_y'], y_coord_df], axis=1, ignore_index=True)
+                    globals()[f'df_{var_name}_z'] = pd.concat([globals()[f'df_{var_name}_z'], z_coord_df], axis=1, ignore_index=True)
+
+############################################################
+# create files
+############################################################
+for coord in coord_list:
+    globals()[f'df_{var_name}_{coord}'].transpose().to_csv(f"{home}/{asset_type}_{coord}.csv", index=False) # save to csv
