@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from ploting import find_max_points
+from analysis.plotting import find_max_points
 
 asset = "Prusa"
 coord_list = ['all', 'x', 'y', 'z']
