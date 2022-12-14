@@ -1,49 +1,65 @@
 import os
 
-import matplotlib.pyplot as plt
-import matplotlib.transforms as transforms
 import numpy as np
 import pandas as pd
-from matplotlib.patches import Ellipse, Patch
-from sklearn import metrics, svm, neighbors
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 
+from ploting import find_max_points
 
-length = 8954
-
-asset_type = "VF-2"
+asset = "Prusa"
 coord_list = ['all', 'x', 'y', 'z']
 # create global variables to store x,y,z and xyz data
-var_name = "VF2"
-for i in range(4):
-    globals()[f'df_{var_name}_{coord_list[i]}'] = pd.DataFrame()
+asset_type = "PRUSA"
+max_points = find_max_points(asset_type, magnitude=0.2)
+home = rf"C:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels\{asset_type}"
+sig_len = 8500
 
-home = "data/Kernels/2022_11_28"
+for i in range(4):
+    globals()[f'df_{asset}_{coord_list[i]}'] = pd.DataFrame()
 
 for folder in os.listdir(home):
-    # if "_ex" in folder:
-    if os.path.isdir(f"{home}/{folder}"):
-        if asset_type in folder:
+    if os.path.isdir(f"{home}/{folder}"):  # check if it is a folder
+        print(folder)
+        center = round(np.median(max_points[folder]))  # find the center of the signal
+        interval = [center - 500, center + 500]  # define the interval to be used
+        if asset in folder.title():
             for file in os.listdir(f"{home}/{folder}"):
                 if '.csv' in file:
-                    df = pd.read_csv(f"{home}/{folder}/{file}")
-                    type = pd.Series(folder)
-                    X = df.iloc[:length, 1]
-                    Y = df.iloc[:length, 2]
-                    Z = df.iloc[:length, 3]
-                    all_coord_df = pd.concat([type, X, Y, Z], ignore_index=True)
-                    x_coord_df = pd.concat([type,X], ignore_index=True)
-                    y_coord_df = pd.concat([type, Y], ignore_index=True)
-                    z_coord_df = pd.concat([type, Z], ignore_index=True)
-                    globals()[f'df_{var_name}_all'] = pd.concat([globals()[f'df_{var_name}_all'], all_coord_df], axis=1, ignore_index=True)
-                    globals()[f'df_{var_name}_x'] = pd.concat([globals()[f'df_{var_name}_x'], x_coord_df], axis=1, ignore_index=True)
-                    globals()[f'df_{var_name}_y'] = pd.concat([globals()[f'df_{var_name}_y'], y_coord_df], axis=1, ignore_index=True)
-                    globals()[f'df_{var_name}_z'] = pd.concat([globals()[f'df_{var_name}_z'], z_coord_df], axis=1, ignore_index=True)
+                    df = pd.read_csv(f"{home}/{folder}/{file}").iloc[:, 1:]
+                    shift = center - np.argmax(df[interval[0]:interval[1]].iloc[:, 1]) - interval[0]  # find the shift
+                    means = [np.mean(df[col]) for col in df.columns]  # find the mean of each column
+                    if shift < 0:  # if the shift is negative, add start signal from the abs shift position
+                        df = df[-shift:]
+                    else:  # if the shift is positive, add zeros to the beginning of the signal
+                        shift_df = pd.DataFrame([means] * shift,
+                                                columns=df.columns)  # create a dataframe with the means
+
+                    # if the signal is smaller than the length, add means to the end of the signal
+                    if df.shape[0] < sig_len:
+                        shift_df = pd.DataFrame([means] * (sig_len - df.shape[0]), columns=df.columns)
+                        df = pd.concat([shift_df, df], axis=0, ignore_index=True)[:sig_len]
+                    else:
+                        df = df[:sig_len]
+
+                    label = pd.Series(folder)
+                    X, Y, Z = [df[col] for col in df.columns]  # split the data into x,y,z
+                    ALL = pd.concat([X, Y, Z], ignore_index=True)
+                    for coord, COORD in zip(coord_list, [ALL, X, Y, Z]):
+                        if coord == 'all':
+                            globals()[f'{coord}_coord_df'] = pd.concat([label, COORD], ignore_index=True)
+                            continue
+                        globals()[f'{coord}_coord_df'] = pd.concat([label, COORD], ignore_index=True)
+
+                    for coord in coord_list:
+                        globals()[f'df_{asset}_{coord}'] = pd.concat(
+                            [globals()[f'df_{asset}_{coord}'], globals()[f'{coord}_coord_df']], axis=1,
+                            ignore_index=True)
 
 ############################################################
 # create files
 ############################################################
 for coord in coord_list:
-    globals()[f'df_{var_name}_{coord}'].transpose().to_csv(f"{home}/{asset_type}_{coord}.csv", index=False) # save to csv
+    try:
+        globals()[f'df_{asset}_{coord}'].transpose().to_csv(f"{home}/{asset}_{coord}.csv", index=False)  # save to csv
+        print(f"Succesfully reated file: {asset}_{coord}.csv")
+    except:
+        print(f"Failed to create file: {asset}_{coord}.csv")
