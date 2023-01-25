@@ -80,7 +80,7 @@ while i < n+1:
     if len(df) < 500*duration:
         continue
     
-    df.to_csv(f"{folder}/{sample_name}.csv")
+    df.to_csv(f"{folder}/{sample_name}.csv",index=False)
     fig = plt.figure(sample_name)
     fig.set_size_inches(18.5,10)
     plt.plot(data)
