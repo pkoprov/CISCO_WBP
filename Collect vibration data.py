@@ -59,7 +59,7 @@ def measurement_steady():
 
 n = int(input("How many times? "))
 i = 1
-duration = int(input("Approximate duration of move in sec? "))
+duration = float(input("Approximate duration of move in sec? "))
 
 asset_name = input("Name of machine? ")
 try:
