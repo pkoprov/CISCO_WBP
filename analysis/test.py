@@ -1,10 +1,10 @@
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
+from analysis.plotting import shift_for_maximum_correlation
 import pandas as pd
 
-root = "data/Kernels/2023_02_07/UR-5e_Wilmington"
+
 #
 # class Data(pd.DataFrame):
 #
@@ -50,10 +50,13 @@ root = "data/Kernels/2023_02_07/UR-5e_Wilmington"
 #
 #
 
+# read data from each sample and merge into one dataframe
+root = "data/Kernels/2023_02_07/UR-5e_Cary"
+
 df_all = pd.DataFrame(columns=["Time"])
 i = 0
 for file in os.listdir(root):
-    if ".csv" in file:
+    if ".csv" in file and "merged" not in file:
         i += 1
         df = pd.read_csv(f"{root}/{file}").iloc[:, :2]
         df.columns = ["Time", f"Sample_{i}"]
@@ -61,12 +64,26 @@ for file in os.listdir(root):
         df.drop_duplicates(["Time"], inplace=True)
         df_all = df_all.merge(df, on="Time", how="outer")
 
+# sort by time and take first 4000 samples
 df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:4000, :]
 
 # deal with missing values
 for row in df_all.iterrows():
     if row[1].isna().any():
         row[1].fillna(row[1].median(), inplace=True)
+
+# shift all samples so that they have maximum correlation with benchmark
+for col in df_all.columns:
+    if col == "Time":
+        continue
+    # shift df so that it has maximum correlation with df_benchmark
+    try:
+        df_all[col] = shift_for_maximum_correlation(benchmark, df_all[col])[0]
+    except:
+        benchmark = df_all[col]
+else:
+    del benchmark
+
 
 # rename columns so they don't appear in legend
 cols = ["_" + col for col in df_all.columns]
@@ -75,8 +92,9 @@ cols[1] = 'Samples'
 df_all.columns = cols
 
 # plot all samples
-df_all.plot(x="Time", alpha=0.3, color="red")
+df_all.plot(x="Time", alpha=0.3, color="blue")
 
+# plot median and 1.5std
 median = df_all.iloc[:, 1:].median(axis=1)
 std = df_all.iloc[:, 1:].std(axis=1)
 plt.plot(df_all["Time"], median, color="black", label="Median")
@@ -85,12 +103,23 @@ plt.legend()
 plt.margins(1e-2)
 plt.tight_layout()
 
-df = pd.read_csv("data/Kernels/2023_01_25/tets/tets_1674659254.csv").iloc[:4000, 1:]
-df = df - df.mean()
-df.plot()
-plt.hist(abs(df))
-plt.boxplot(abs(df))
-np.quantile(abs(df), 0.95)
-df_abs_sorted = abs(df.to_numpy()).flatten()
-df_abs_sorted.sort()
-(np.where(df_abs_sorted > 0.0024 * 3)[0][0] - 1) / len(df_abs_sorted)
+
+df_all = df_all.transpose()
+# set Time to be columns
+df_all.columns = df_all.iloc[0]
+df_all.drop("Time", inplace=True)
+# rename indices from Samples to UR-5e_...
+indices = [root.split("/")[-1][:7] for i in range(df_all.shape[0])]
+df_all.index = indices
+# save to csv
+df_all.to_csv(f"{root}/merged.csv")
+
+# merge all merged.csv files into one
+df_total = pd.DataFrame()
+for folder in os.listdir("data/Kernels/2023_02_07"):
+    if os.path.isdir(f"data/Kernels/2023_02_07/{folder}"):
+        for file in os.listdir(f"data/Kernels/2023_02_07/{folder}"):
+            if "merged.csv" in file:
+                df_total = df_total.append(pd.read_csv(f"data/Kernels/2023_02_07/{folder}/{file}",index_col=0))
+
+df_total.to_csv("data/Kernels/2023_02_07/merged.csv")
