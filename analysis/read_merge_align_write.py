@@ -64,8 +64,8 @@ for file in os.listdir(root):
         df.drop_duplicates(["Time"], inplace=True)
         df_all = df_all.merge(df, on="Time", how="outer")
 
-# sort by time and take first 4000 samples
-df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:4000, :]
+# sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
+df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:8500, :]
 
 # deal with missing values
 for row in df_all.iterrows():
@@ -115,6 +115,9 @@ df_all.index = indices
 df_all.to_csv(f"{root}/merged.csv")
 
 # merge all merged.csv files into one
+## for VF-2
+# df_total = df_total.append(pd.read_csv(f"{root}/{file}",index_col=0))
+# for UR-5e
 df_total = pd.DataFrame()
 for folder in os.listdir("data/Kernels/2023_02_07"):
     if os.path.isdir(f"data/Kernels/2023_02_07/{folder}"):
