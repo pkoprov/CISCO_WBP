@@ -5,51 +5,6 @@ from analysis.plotting import shift_for_maximum_correlation
 import pandas as pd
 
 
-#
-# class Data(pd.DataFrame):
-#
-#
-#     def __init__(self, root_folder , length, *args, **kw):
-#         super().__init__(columns=["Time"],*args, **kw)
-#         self.root = root_folder
-#         self.length = length
-#
-#     @property
-#     def _constructor(self):
-#         return Data
-#
-#     def __repr__(self):
-#         return super().__repr__()
-#
-#     def load(self):
-#         df_all = pd.DataFrame(columns=["Time"])
-#         i = 0
-#         for file in os.listdir(self.root):
-#             if ".csv" in file:
-#                 i+=1
-#                 df = pd.read_csv(f"{self.root}/{file}").iloc[:self.length, :2]
-#                 df.columns=["Time",f"Sample_{i}"]
-#                 df["Time"] = df["Time"].round(3)
-#                 df_all = df_all.merge(df, on = "Time", how="outer")
-#         df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:self.length, :]
-#         # deal with missing values
-#         for row in df_all.iterrows():
-#             if row[1].isna().any():
-#                 row[1].fillna(np.median(row[1]), inplace=True)
-#         # rename columns so they don't appear in legend
-#         cols = ["_" + col for col in df_all.columns]
-#         cols[0] = 'Time'
-#         cols[1] = 'Samples'
-#         df_all.columns = cols
-#         return df_all
-#
-#
-#
-# df = Data(root, 4000)
-# df_all = df.load()
-#
-#
-
 # read data from each sample and merge into one dataframe
 root = "data/Kernels/2023_02_07/UR-5e_Cary"
 
