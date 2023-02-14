@@ -17,6 +17,14 @@ for file in os.listdir(root):
         df.columns = ["Time", f"Sample_{i}"]
         df["Time"] = df["Time"].round(3)
         df.drop_duplicates(["Time"], inplace=True)
+
+        # plt.plot(df["Time"], df[f"Sample_{i}"])
+        # plt.pause(0.1)
+        # plt.show()
+        # print(file)
+        # input()
+        # plt.close()
+
         df_all = df_all.merge(df, on="Time", how="outer")
 
 # sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
@@ -39,6 +47,15 @@ for col in df_all.columns:
 else:
     del benchmark
 
+# plt.figure()
+# for col in df_all.columns:
+#     if col == "Time":
+#         continue
+#     plt.plot(df_all["Time"], df_all[col], alpha=0.3)
+#     plt.pause(0.1)
+#     plt.show()
+#     print(col)
+#     input()
 
 # rename columns so they don't appear in legend
 cols = ["_" + col for col in df_all.columns]
