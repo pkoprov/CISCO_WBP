@@ -93,11 +93,11 @@ df_all.to_csv(f"{root}/merged.csv")
 # for UR-5e
 type = "Prusa"
 df_total = pd.DataFrame()
-for folder in os.listdir("data/Kernels/2023_02_07"):
-    if os.path.isdir(f"data/Kernels/2023_02_07/{folder}") and type in folder:
-        for file in os.listdir(f"data/Kernels/2023_02_07/{folder}") :
+for folder in os.listdir(f"data/Kernels/{type}"):
+    if os.path.isdir(f"data/Kernels/{type}/{folder}") and type in folder:
+        for file in os.listdir(f"data/Kernels/{type}/{folder}") :
             if "merged.csv" in file:
-                df = pd.read_csv(f"data/Kernels/2023_02_07/{folder}/{file}", index_col=0)
+                df = pd.read_csv(f"data/Kernels/{type}/{folder}/{file}", index_col=0)
                 df_total = df_total.append(df)
 
 df_total.to_csv(f"data/Kernels/2023_02_07/{type}_merged.csv", index_label="asset")
