@@ -17,6 +17,7 @@ for file in os.listdir(root):
         df.columns = ["Time", f"Sample_{i}"]
         df["Time"] = df["Time"].round(3)
         df.drop_duplicates(["Time"], inplace=True)
+        df.iloc[:,1] -= df.iloc[:,1].mean()
 
         # plt.plot(df["Time"], df[f"Sample_{i}"])
         # plt.pause(0.1)
