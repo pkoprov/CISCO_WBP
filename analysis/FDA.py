@@ -1,0 +1,130 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import skfda
+from skfda.representation.interpolation import SplineInterpolation
+
+
+plt.ion()
+data = pd.read_csv(r'data\Kernels\2023_02_07\VF_merged.csv')
+# convert columns names  to float
+sample = data.iloc[0,1:].astype(float)
+sample.index = sample.index.astype(float)
+
+sample.plot()
+
+
+def top_bottom(sample: pd.Series):
+    ''' Function to find the top and bottom shape of a sample'''
+    positive = sample[sample > 0]
+    negative = sample[sample < 0]
+    n = 0
+    top,bottom = [0], [0]
+
+    while n < sample.shape[0]/1000:
+        for var, fun, lst  in zip([positive, negative], [np.argmax, np.argmin], [top, bottom]):
+            try:
+                chunk = var.loc[n:n+0.01].iloc[1:]
+                max_ind = fun(chunk)
+                lst.append(chunk.index[max_ind])
+            except:
+                pass
+    
+        n += 0.01
+    return top,bottom
+
+top, bottom = top_bottom(sample)
+
+# plot top and bottom shapes
+
+for var in [top, bottom]:
+    plt.plot(var, sample[var], marker=".")
+
+grid = top
+data_matrix = sample[grid].values
+curve = skfda.FDataGrid(data_matrix, grid_points=grid)
+curve.plot(axes = plt.gca())
+
+curve.interpolation = SplineInterpolation(3)
+curve.plot(axes = plt.gca(), color = 'green', alpha = 0.5, linewidth = 2)
+
+basis = curve.to_basis(skfda.representation.basis.BSplineBasis(knots = grid))
+basis.plot(axes = plt.gca(), color = 'red', alpha = 0.5, linewidth = 2)
+basis
+
+
+
+
+
+plt.gca().get_lines()[-1].remove()
+
+from skfda.preprocessing.dim_reduction import FPCA
+from skfda.exploratory.visualization import FPCAPlot
+
+dataset = skfda.datasets.fetch_growth()
+fd = dataset['data']
+y = dataset['target']
+fd.plot()
+fpca_discretized = FPCA(n_components=2)
+fpca_discretized.fit(fd)
+fpca_discretized.components_.plot()
+basis = skfda.representation.basis.BSplineBasis(n_basis=7)
+basis_fd = fd.to_basis(basis)
+basis_fd.plot()
+fpca = FPCA(n_components=2)
+fpca.fit(basis_fd)
+fpca.components_.plot()
+
+FPCAPlot(
+    basis_fd.mean(),
+    fpca.components_,
+    factor=30,
+    fig=plt.figure(figsize=(6, 2 * 4)),
+    n_rows=2,
+).plot()
+
+
+from skfda.misc.metrics import l2_distance, l2_norm
+from skfda.preprocessing.dim_reduction import FPCA
+
+
+target = data.loc[data['asset']=="VF-2_2", "0.0":]
+np.random.seed(0)
+train_ind = target.index[0] + np.random.choice(27, 25, replace=False)
+train = target.loc[train_ind, :]
+test = pd.concat([target.drop(train_ind), data.loc[data['asset']!="VF-2_2", "0.0":]])
+
+train_set = skfda.representation.FDataGrid(train.values, train.columns.astype(float))
+test_set = skfda.representation.FDataGrid(test.values, train.columns.astype(float))
+
+test_set_labels = data['asset'].loc[test.index].values
+
+
+
+fpca_clean = FPCA(n_components=10)
+fpca_clean.fit(train_set)
+train_set_hat = fpca_clean.inverse_transform(
+    fpca_clean.transform(train_set)
+)
+
+err_train = l2_distance(
+    train_set,
+    train_set_hat
+) / l2_norm(train_set)
+
+test_set_hat = fpca_clean.inverse_transform(
+    fpca_clean.transform(test_set)
+)
+err_test = l2_distance(
+    test_set,
+    test_set_hat
+) / l2_norm(test_set)
+
+err_thresh = err_train.max()*1.25
+
+print('Flagged outliers: ')
+print(test_set_labels[err_test >= err_thresh])
+print('Flagged nonoutliers: ')
+print(test_set_labels[err_test < err_thresh])
+
+np.quantile(err_train, 0.99)
