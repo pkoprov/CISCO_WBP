@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import skfda
-from skfda.representation.interpolation import SplineInterpolation
+from skfda.representation.basis import BSpline
 
 
 plt.ion()
@@ -49,21 +49,40 @@ def top_bottom(sample: pd.Series):
 top, bottom = top_bottom(sample)
 
 # plot top and bottom shapes
-
 for var in [top, bottom]:
+    sample[var[0]] = 0
     plt.plot(var, sample[var], marker=".")
 
-grid = top
-data_matrix = sample[grid].values
-curve = skfda.FDataGrid(data_matrix, grid_points=grid)
-curve.plot(axes = plt.gca())
+# interpolate the missing x values
+def fit_missing(sample):
+    limits = top_bottom(sample)
+    lim_dict = {'top': [], 'bottom': []}
+    for lim, key in zip(limits, lim_dict):
+        data_matrix = sample[lim].values
+        data_matrix[0] = 0
+        # create a grid
+        x = np.arange(0, sample.index[-1]+0.001, 0.001)
+        x = np.round(x, 3)
+        # interpolate the data
+        y = np.interp(x, lim, data_matrix)
+        lim_dict[key] = y
+    return lim_dict
 
-curve.interpolation = SplineInterpolation(3)
-curve.plot(axes = plt.gca(), color = 'green', alpha = 0.5, linewidth = 2)
 
-basis = curve.to_basis(skfda.representation.basis.BSplineBasis(knots = grid))
-basis.plot(axes = plt.gca(), color = 'red', alpha = 0.5, linewidth = 2)
-basis
+dat = sample.loc[:5.0]
+
+lim_dict = fit_missing(dat)
+
+grid = np.round(np.arange(0, dat.index[-1]+0.001, 0.001),3)
+y = lim_dict['top']
+curve = skfda.FDataGrid(y, grid_points=grid)
+
+curve.plot(axes = plt.gca(), color = "blue")
+
+basis = basis = BSpline(knots=grid, order =2)
+basis_curve = curve.to_basis(basis)
+basis_curve.plot(axes = plt.gca(), color="red")
+
 
 
 
