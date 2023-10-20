@@ -11,6 +11,15 @@ data = pd.read_csv(r'data\Kernels\2023_02_07\VF_merged.csv')
 sample = data.iloc[0,1:].astype(float)
 sample.index = sample.index.astype(float)
 
+def figure():
+
+    manager = plt.get_current_fig_manager()
+    manager.window.wm_geometry("-5000+1")
+    plt.pause(0.5)
+    manager.window.state('zoomed')
+    plt.show(block=False)
+
+figure()
 sample.plot()
 
 
