@@ -27,19 +27,23 @@ def top_bottom(sample: pd.Series):
     ''' Function to find the top and bottom shape of a sample'''
     positive = sample[sample > 0]
     negative = sample[sample < 0]
-    n = 0
     top,bottom = [0], [0]
 
-    while n < sample.shape[0]/1000:
-        for var, fun, lst  in zip([positive, negative], [np.argmax, np.argmin], [top, bottom]):
+    for var, fun, lst  in zip([positive, negative], [np.argmax, np.argmin], [top, bottom]):
+        # var, fun, lst  = positive, np.argmax, top
+        n = 0
+        while n < sample.shape[0]/1000:
             try:
-                chunk = var.loc[n:n+0.01].iloc[1:]
+                chunk = var.loc[n:round(n+0.01, 2)]
                 max_ind = fun(chunk)
-                lst.append(chunk.index[max_ind])
+                ms = chunk.index[max_ind]
+                if ms not in lst:
+                    lst.append(chunk.index[max_ind])
             except:
                 pass
-    
-        n += 0.01
+        
+            n = round(n+0.01, 2)
+            # print(n, lst)
     return top,bottom
 
 top, bottom = top_bottom(sample)
