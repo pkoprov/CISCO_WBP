@@ -38,6 +38,9 @@ class Sample(pd.DataFrame):
         self.columns = [float(col) if is_convertible_to_float(col) else col for col in self.columns]
         self.numeric = self.iloc[:,1:].astype(float)
         self._top_bottom = None  # Initialize the private attribute
+        self._top_bottom_filled = None # Initialize the private attribute
+        self.grid = self.numeric.columns
+        
 
     @property
     def top_bottom(self):
@@ -63,30 +66,25 @@ class Sample(pd.DataFrame):
                 except Exception as e:
                     pass
     
+    @property
+    def top_bottom_filled(self):
+        ''' Property returning the indexes of top and bottom of a sample in 0.01 windows'''
+        if self._top_bottom_filled is None:
+            self._calculate_top_bottom_filled()
+        return self._top_bottom_filled
 
-    def fit_missing(self):
+    def _calculate_top_bottom_filled(self):
         '''Funtion to interpolate the missing x values'''
-        limits = top_bottom(sample)
-        lim_dict = {'top': [], 'bottom': []}
-        for lim, key in zip(limits, lim_dict):
-            data_matrix = sample[lim].values
-            data_matrix[0] = 0
-            # create a grid
-            x = np.arange(0, sample.index[-1]+0.001, 0.001)
-            x = np.round(x, 3)
-            # interpolate the data
-            y = np.interp(x, lim, data_matrix)
-            lim_dict[key] = y
-        return lim_dict
-
-
+        self._top_bottom_filled = {'top': [], 'bottom': []}
+        for key in self.top_bottom:
+            lim = self.top_bottom[key].apply(lambda row: np.interp(self.grid, row.dropna(), self.numeric.loc[row.name, row.dropna()]), axis=1)
+            self._top_bottom_filled[key] = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
+        return self._top_bottom_filled
 
 sample = Sample(data)
 
+
 limits = sample.top_bottom
-
-
-first_top = limits['bottom'].iloc[0,:].dropna()
 
 
 figure()
@@ -97,6 +95,14 @@ for i in range(2):
         col = limits[var].loc[i].dropna()
         plt.plot(col, sample.loc[i,col], marker=".")
 
+
+limits  = sample.top_bottom_filled
+
+# plot top and bottom shapes
+for i in range(2):
+    for var in ['top', 'bottom']:
+        col = limits[var].loc[i]
+        col.plot()
 
 
 def to_basis(sample, lim:"top" or "bottom", plot = False):
