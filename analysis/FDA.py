@@ -19,6 +19,15 @@ def figure():
     manager.window.state('zoomed')
     plt.show(block=False)
 
+
+# Function to check if a string can be converted to a float
+def is_convertible_to_float(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
 figure()
 sample.plot()
 
