@@ -5,5 +5,7 @@
 .RData
 .Rhistory
 test.m
-*.Rproj
-.Rproj.user/
+*.Rproj*
+.python-version
+install-pyenv-win.ps1
+__pycache__/*
