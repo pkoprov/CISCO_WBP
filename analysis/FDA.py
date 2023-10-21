@@ -3,13 +3,8 @@ import pandas as pd
 import numpy as np
 import skfda
 from skfda.representation.basis import BSpline
+from tqdm import tqdm
 
-
-plt.ion()
-data = pd.read_csv(r'data\Kernels\2023_02_07\VF_merged.csv')
-# convert columns names  to float
-sample = data.iloc[0,1:].astype(float)
-sample.index = sample.index.astype(float)
 
 def figure():
 
@@ -28,39 +23,67 @@ def is_convertible_to_float(value):
     except ValueError:
         return False
 
+
+plt.ion()
+data = pd.read_csv(r'data\Kernels\2023_02_07\VF_merged.csv')
+# convert columns names  to float
+sample = data.iloc[0,1:].astype(float)
+sample.index = sample.index.astype(float)
+
+class Sample(pd.DataFrame):
+
+    def __init__(self, data):
+        super().__init__(data)
+        self.labels = self.iloc[:,0]
+        self.columns = [float(col) if is_convertible_to_float(col) else col for col in self.columns]
+        self.numeric = self.iloc[:,1:].astype(float)
+
+    def top_bottom(self):
+        ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
+        positive = self.numeric[self.numeric > 0]
+        negative = self.numeric[self.numeric < 0]
+        self.lim_col = {key:pd.DataFrame() for i, key in zip(range(2),['top', 'bottom'])}
+
+        final_n = round(self.numeric.columns[-1], 2)
+        for var, key in zip([positive, negative], self.lim_col):
+            for n in tqdm(np.round(np.arange(0, final_n, 0.01),2), desc=f"Processing {key}"):
+                try:
+                    chunk = var.loc[:,n:round(n + 0.01, 2)]
+                    if key == "top":
+                        ms = chunk.idxmax(axis=1)
+                    else:
+                        ms = chunk.idxmin(axis=1)
+
+                    # Concatenate along axis=1 and then apply `pd.Series.unique` on each row
+
+                    concatenated = pd.concat([self.lim_col[key].iloc[:,-1:], ms], axis=1, ignore_index=True)
+                    unique = concatenated.apply(lambda row: pd.Series(row.unique()), axis=1)
+
+                    self.lim_col[key] = pd.concat([self.lim_col[key], unique.iloc[:,-1]], axis=1, ignore_index=True)
+                except Exception as e:
+                    print(f"An exception occurred: {e}")
+                    pass
+
+        return self.lim_col
+
+
+
+sample = Sample(data)
+
+limits = sample.top_bottom()
+
+
+first_top = limits['bottom'].iloc[0,:].dropna()
+
+
 figure()
 sample.plot()
 
-
-def top_bottom(sample: pd.Series):
-    ''' Function to find the top and bottom shape of a sample'''
-    positive = sample[sample > 0]
-    negative = sample[sample < 0]
-    top,bottom = [0], [0]
-
-    for var, fun, lst  in zip([positive, negative], [np.argmax, np.argmin], [top, bottom]):
-        # var, fun, lst  = positive, np.argmax, top
-        n = 0
-        while n < sample.shape[0]/1000:
-            try:
-                chunk = var.loc[n:round(n+0.01, 2)]
-                max_ind = fun(chunk)
-                ms = chunk.index[max_ind]
-                if ms not in lst:
-                    lst.append(chunk.index[max_ind])
-            except:
-                pass
-        
-            n = round(n+0.01, 2)
-            # print(n, lst)
-    return top,bottom
-
-top, bottom = top_bottom(sample)
-
 # plot top and bottom shapes
-for var in [top, bottom]:
-    sample[var[0]] = 0
-    plt.plot(var, sample[var], marker=".")
+for i in range(2):
+    for var in ['top', 'bottom']:
+        col = limits[var].loc[i].dropna()
+        plt.plot(col, sample.loc[i,col], marker=".")
 
 # interpolate the missing x values
 def fit_missing(sample):
