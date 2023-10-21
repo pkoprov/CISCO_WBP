@@ -34,75 +34,68 @@ class Sample(pd.DataFrame):
 
     def __init__(self, data):
         super().__init__(data)
-        # extract the labels and the numeric data
         self.labels = self.iloc[:,0]
         self.columns = [float(col) if is_convertible_to_float(col) else col for col in self.columns]
         self.numeric = self.iloc[:,1:].astype(float)
+        self._top_bottom = None  # Initialize the private attribute
 
+    @property
     def top_bottom(self):
+        ''' Property returning the indexes of top and bottom of a sample in 0.01 windows'''
+        if self._top_bottom is None:
+            self._calculate_top_bottom()
+        return self._top_bottom
+
+    def _calculate_top_bottom(self):
         ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
         positive = self.numeric[self.numeric > 0]
         negative = self.numeric[self.numeric < 0]
-        # create empty dataframes to store the indexes of top and bottom
-        self.lim_col = {key:pd.DataFrame() for i, key in zip(range(2),['top', 'bottom'])}
-
-        # iterate over the numeric columns with step of 0.01 and find the indexes of top and bottom
+        self._top_bottom = {key:pd.DataFrame() for key in ['top', 'bottom']}
         final_n = round(self.numeric.columns[-1], 2)
-        for var, key in zip([positive, negative], self.lim_col):
-            for n in tqdm(np.round(np.arange(0, final_n, 0.01),2), desc=f"Processing {key}"):
+        for var, key in zip([positive, negative], self._top_bottom):
+            for n in tqdm(np.round(np.arange(0, final_n, 0.01), 2), desc=f"Processing {key}"):
                 try:
-                    # extract a chunkof timeseries with step of 0.01
-                    chunk = var.loc[:,n:round(n + 0.01, 2)]
-                    if key == "top":
-                        ms = chunk.idxmax(axis=1)
-                    else:
-                        ms = chunk.idxmin(axis=1)
-
-                    # Concatenate last row of stored data and extremes along axis=1
-                    concatenated = pd.concat([self.lim_col[key].iloc[:,-1:], ms], axis=1, ignore_index=True)
-                    # drop duplicates
+                    chunk = var.loc[:, n:round(n + 0.01, 2)]
+                    ms = chunk.idxmax(axis=1) if key == "top" else chunk.idxmin(axis=1)
+                    concatenated = pd.concat([self._top_bottom[key].iloc[:, -1:], ms], axis=1, ignore_index=True)
                     unique = concatenated.apply(lambda row: pd.Series(row.unique()), axis=1)
-                    # concatenate the unique values with the stored data
-                    self.lim_col[key] = pd.concat([self.lim_col[key], unique.iloc[:,-1]], axis=1, ignore_index=True)
+                    self._top_bottom[key] = pd.concat([self._top_bottom[key], unique.iloc[:, -1]], axis=1, ignore_index=True)
                 except Exception as e:
-                    print(f"An exception occurred: {e}")
                     pass
+    
 
-        return self.lim_col
+    def fit_missing(self):
+        '''Funtion to interpolate the missing x values'''
+        limits = top_bottom(sample)
+        lim_dict = {'top': [], 'bottom': []}
+        for lim, key in zip(limits, lim_dict):
+            data_matrix = sample[lim].values
+            data_matrix[0] = 0
+            # create a grid
+            x = np.arange(0, sample.index[-1]+0.001, 0.001)
+            x = np.round(x, 3)
+            # interpolate the data
+            y = np.interp(x, lim, data_matrix)
+            lim_dict[key] = y
+        return lim_dict
 
 
 
 sample = Sample(data)
 
-limits = sample.top_bottom()
+limits = sample.top_bottom
 
 
 first_top = limits['bottom'].iloc[0,:].dropna()
 
 
 figure()
-sample.plot()
 
 # plot top and bottom shapes
 for i in range(2):
     for var in ['top', 'bottom']:
         col = limits[var].loc[i].dropna()
         plt.plot(col, sample.loc[i,col], marker=".")
-
-# interpolate the missing x values
-def fit_missing(sample):
-    limits = top_bottom(sample)
-    lim_dict = {'top': [], 'bottom': []}
-    for lim, key in zip(limits, lim_dict):
-        data_matrix = sample[lim].values
-        data_matrix[0] = 0
-        # create a grid
-        x = np.arange(0, sample.index[-1]+0.001, 0.001)
-        x = np.round(x, 3)
-        # interpolate the data
-        y = np.interp(x, lim, data_matrix)
-        lim_dict[key] = y
-    return lim_dict
 
 
 
