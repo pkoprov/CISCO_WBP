@@ -34,6 +34,7 @@ class Sample(pd.DataFrame):
 
     def __init__(self, data):
         super().__init__(data)
+        # extract the labels and the numeric data
         self.labels = self.iloc[:,0]
         self.columns = [float(col) if is_convertible_to_float(col) else col for col in self.columns]
         self.numeric = self.iloc[:,1:].astype(float)
@@ -42,23 +43,26 @@ class Sample(pd.DataFrame):
         ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
         positive = self.numeric[self.numeric > 0]
         negative = self.numeric[self.numeric < 0]
+        # create empty dataframes to store the indexes of top and bottom
         self.lim_col = {key:pd.DataFrame() for i, key in zip(range(2),['top', 'bottom'])}
 
+        # iterate over the numeric columns with step of 0.01 and find the indexes of top and bottom
         final_n = round(self.numeric.columns[-1], 2)
         for var, key in zip([positive, negative], self.lim_col):
             for n in tqdm(np.round(np.arange(0, final_n, 0.01),2), desc=f"Processing {key}"):
                 try:
+                    # extract a chunkof timeseries with step of 0.01
                     chunk = var.loc[:,n:round(n + 0.01, 2)]
                     if key == "top":
                         ms = chunk.idxmax(axis=1)
                     else:
                         ms = chunk.idxmin(axis=1)
 
-                    # Concatenate along axis=1 and then apply `pd.Series.unique` on each row
-
+                    # Concatenate last row of stored data and extremes along axis=1
                     concatenated = pd.concat([self.lim_col[key].iloc[:,-1:], ms], axis=1, ignore_index=True)
+                    # drop duplicates
                     unique = concatenated.apply(lambda row: pd.Series(row.unique()), axis=1)
-
+                    # concatenate the unique values with the stored data
                     self.lim_col[key] = pd.concat([self.lim_col[key], unique.iloc[:,-1]], axis=1, ignore_index=True)
                 except Exception as e:
                     print(f"An exception occurred: {e}")
