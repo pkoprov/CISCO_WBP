@@ -101,21 +101,23 @@ def fit_missing(sample):
     return lim_dict
 
 
-dat = sample.loc[:5.0]
 
-lim_dict = fit_missing(dat)
+def to_basis(sample, lim:"top" or "bottom", plot = False):
+    lim_dict = fit_missing(sample)
 
-grid = np.round(np.arange(0, dat.index[-1]+0.001, 0.001),3)
-y = lim_dict['top']
-curve = skfda.FDataGrid(y, grid_points=grid)
+    grid = np.round(np.arange(0, sample.index[-1]+0.001, 0.001),3)
+    y = lim_dict[lim]
+    curve = skfda.FDataGrid(y, grid_points=grid) 
+    basis = BSpline(knots=top)
+    basis_curve = curve.to_basis(basis)
+    if plot:
+        basis_curve.plot(color="red")
+        curve.plot(axes = plt.gca(), color = "blue", alpha = 0.5)
+    return basis_curve
 
-curve.plot(axes = plt.gca(), color = "blue")
-
-basis = basis = BSpline(knots=grid, order =2)
-basis_curve = curve.to_basis(basis)
-basis_curve.plot(axes = plt.gca(), color="red")
 
 
+basis_curve = to_basis(sample, "bottom")
 
 
 
