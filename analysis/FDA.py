@@ -30,6 +30,7 @@ data = pd.read_csv(r'data\Kernels\2023_02_07\VF_merged.csv')
 sample = data.iloc[0,1:].astype(float)
 sample.index = sample.index.astype(float)
 
+
 class Sample(pd.DataFrame):
 
     def __init__(self, data):
@@ -40,16 +41,17 @@ class Sample(pd.DataFrame):
         self._top_bottom = None  # Initialize the private attribute
         self._top_bottom_filled = None # Initialize the private attribute
         self.grid = self.numeric.columns
+        self._FData = {}
         
 
     @property
-    def top_bottom(self):
+    def top_bottom_idx(self):
         ''' Property returning the indexes of top and bottom of a sample in 0.01 windows'''
         if self._top_bottom is None:
-            self._calculate_top_bottom()
+            self._calculate_top_bottom_idx()
         return self._top_bottom
 
-    def _calculate_top_bottom(self):
+    def _calculate_top_bottom_idx(self):
         ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
         positive = self.numeric[self.numeric > 0]
         negative = self.numeric[self.numeric < 0]
@@ -68,7 +70,7 @@ class Sample(pd.DataFrame):
     
     @property
     def top_bottom_filled(self):
-        ''' Property returning the indexes of top and bottom of a sample in 0.01 windows'''
+        ''' Property returning the DataFrames of top and bottom of a sample with filled values'''
         if self._top_bottom_filled is None:
             self._calculate_top_bottom_filled()
         return self._top_bottom_filled
@@ -76,15 +78,49 @@ class Sample(pd.DataFrame):
     def _calculate_top_bottom_filled(self):
         '''Funtion to interpolate the missing x values'''
         self._top_bottom_filled = {'top': [], 'bottom': []}
-        for key in self.top_bottom:
-            lim = self.top_bottom[key].apply(lambda row: np.interp(self.grid, row.dropna(), self.numeric.loc[row.name, row.dropna()]), axis=1)
-            self._top_bottom_filled[key] = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
+        for key in self.top_bottom_idx:
+            # linearly interpolate and add 0 as a starting point
+            lim = self.top_bottom_idx[key].apply(lambda row: np.interp(self.grid, [0]+row.dropna().tolist(), [0] + self.numeric.loc[row.name, row.dropna()].tolist()), axis=1)
+            df = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
+            df[0] = 0
+            self._top_bottom_filled[key] = df
         return self._top_bottom_filled
+    
+
+    def FData(self, row = 'all', lim = 'all', plot = False):
+
+            '''Function to convert the top and bottom shapes to a FData representation'''
+            match row:
+                case int():
+                    row = np.array(row).flatten().tolist()
+                    self.FData(row = row, lim=lim, plot=plot)
+                case 'all':
+                    self.FData(row = [int(i) for i in self.index.values], lim=lim, plot=plot)
+                case list():
+                    match lim:
+                        case 'all':                       
+                            [self.FData(row = row, lim=key, plot=plot) for key in ['top', 'bottom']]
+                        case _:
+                            y = self.top_bottom_filled[lim].loc[row]
+                            y = y.to_numpy().reshape(len(row), -1, 1)
+
+                            curve = skfda.FDataGrid(y, grid_points=self.grid)
+                            # basis = BSpline(knots=self.grid, order=15)
+                            # basis_curve = curve.to_basis(basis)
+                            if plot:
+                                # basis_curve.plot()
+                                curve.plot(axes = plt.gca(), color = "black", alpha = 0.5)
+                            self._FData[lim] = curve
+
+                    
+            return self._FData
+
+  
 
 sample = Sample(data)
 
 
-limits = sample.top_bottom
+limits = sample.top_bottom_idx
 
 
 figure()
@@ -96,7 +132,7 @@ for i in range(2):
         plt.plot(col, sample.loc[i,col], marker=".")
 
 
-limits  = sample.top_bottom_filled
+limits_df  = sample.top_bottom_filled
 
 # plot top and bottom shapes
 for i in range(2):
@@ -105,24 +141,13 @@ for i in range(2):
         col.plot()
 
 
-def to_basis(sample, lim:"top" or "bottom", plot = False):
-    lim_dict = fit_missing(sample)
+fd = sample.FData()
 
-    grid = np.round(np.arange(0, sample.index[-1]+0.001, 0.001),3)
-    y = lim_dict[lim]
-    curve = skfda.FDataGrid(y, grid_points=grid) 
-    basis = BSpline(knots=top)
-    basis_curve = curve.to_basis(basis)
-    if plot:
-        basis_curve.plot(color="red")
-        curve.plot(axes = plt.gca(), color = "blue", alpha = 0.5)
-    return basis_curve
+fd['bottom'].plot(axes = plt.gca())
 
+basis_curve = sample.to_basis(row = [0,1], lim = 'top', plot = True)
 
-
-basis_curve = to_basis(sample, "bottom")
-
-
+sample.basis_representation
 
 
 plt.gca().get_lines()[-1].remove()
