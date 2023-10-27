@@ -25,10 +25,24 @@ def is_convertible_to_float(value):
 
 
 plt.ion()
-data = pd.read_csv(r'data\Kernels\2023_02_07\VF_merged.csv')
-# convert columns names  to float
-sample = data.iloc[0,1:].astype(float)
-sample.index = sample.index.astype(float)
+
+
+def find_extreme_grid(array:np.array, key = 'top'):
+    ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
+    extreme = []
+    for n in tqdm(np.round(np.arange(0, array.shape[0], 10), 2), desc=f"Processing {key}"):
+                try:
+                    chunk = array[n:n + 10]
+                    pos = chunk.argmax() if key == "top" else chunk.argmin() 
+                    if n == 0:
+                        extreme.append(pos)
+                        continue
+                    pos = int(n+pos)                    
+                    extreme.append(pos) if pos != extreme[-1] else extreme
+                except Exception as e:
+                    pass
+    grid  = np.array(extreme)/1000
+    return grid
 
 
 class Sample(pd.DataFrame):
