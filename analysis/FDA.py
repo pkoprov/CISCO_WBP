@@ -119,10 +119,7 @@ class Sample(pd.DataFrame):
                             y = y.to_numpy().reshape(len(row), -1, 1)
 
                             curve = skfda.FDataGrid(y, grid_points=self.grid)
-                            # basis = BSpline(knots=self.grid, order=15)
-                            # basis_curve = curve.to_basis(basis)
                             if plot:
-                                # basis_curve.plot()
                                 curve.plot(axes = plt.gca(), color = "black", alpha = 0.5)
                             self._FData[lim] = curve
 
@@ -131,108 +128,163 @@ class Sample(pd.DataFrame):
 
   
 
-sample = Sample(data)
 
 
-limits = sample.top_bottom_idx
+# limits_df  = sample.top_bottom_filled
+
+# limits_df['top'].loc[:20].T.plot()
+# plt.figure()
+# limits_df['top'].loc[-20:].T.plot()
+
+# # plot top and bottom shapes
+# for i in range(40,42):
+#     for var in ['top', 'bottom']:
+#         col = limits_df[var].loc[i]
+#         col.plot()
 
 
-figure()
 
-# plot top and bottom shapes
-for i in range(2):
-    for var in ['top', 'bottom']:
-        col = limits[var].loc[i].dropna()
-        plt.plot(col, sample.loc[i,col], marker=".")
+# fd_dict = sample.FData()
+# fd = fd_dict['top']
 
+# # plot mean of curves and curves
+# target_curve = fd[target_idx]
+# target_curve.plot(axes = plt.gca(), alpha = 0.1, color = "black")
+# target_curve_mean = target_curve.mean()
+# target_curve_mean.mean().plot(axes = plt.gca(),color = "blue")
 
-limits_df  = sample.top_bottom_filled
+# tcm = target_curve_mean.data_matrix.reshape(-1)
+# top = find_extreme_grid(tcm, key = 'top')
 
-# plot top and bottom shapes
-for i in range(2):
-    for var in ['top', 'bottom']:
-        col = limits[var].loc[i]
-        col.plot()
-
-
-fd = sample.FData()
-
-fd['bottom'].plot(axes = plt.gca())
-
-basis_curve = sample.to_basis(row = [0,1], lim = 'top', plot = True)
-
-sample.basis_representation
+# basis_top = BSpline(knots=top)
+# basis_curve = target_curve.to_basis(basis_top)
 
 
-plt.gca().get_lines()[-1].remove()
+# target_curve_mean.to_basis(basis_top).plot()
+# for i in range(basis_curve.shape[0]):
+#     basis_curve[i].plot(axes = plt.gca(), color = "red", linestyle = '--', alpha = 0.5)
+#     plt.pause(0.1)
+#     input()
+#     plt.gca().get_lines()[-1].remove()
 
-from skfda.preprocessing.dim_reduction import FPCA
-from skfda.exploratory.visualization import FPCAPlot
 
-dataset = skfda.datasets.fetch_growth()
-fd = dataset['data']
-y = dataset['target']
-fd.plot()
-fpca_discretized = FPCA(n_components=2)
-fpca_discretized.fit(fd)
-fpca_discretized.components_.plot()
-basis = skfda.representation.basis.BSplineBasis(n_basis=7)
-basis_fd = fd.to_basis(basis)
-basis_fd.plot()
-fpca = FPCA(n_components=2)
-fpca.fit(basis_fd)
-fpca.components_.plot()
+# plt.gca().get_lines()[-1].remove()
 
-FPCAPlot(
-    basis_fd.mean(),
-    fpca.components_,
-    factor=30,
-    fig=plt.figure(figsize=(6, 2 * 4)),
-    n_rows=2,
-).plot()
+# from skfda.preprocessing.dim_reduction import FPCA
+# from skfda.exploratory.visualization import FPCAPlot
+
+
+# target_curve.plot()
+# fpca_discretized = FPCA(n_components=2)
+# fpca_discretized.fit(target_curve)
+# fpca_discretized.components_.plot()
+# basis = BSpline(knots=top)
+# basis_fd = target_curve.to_basis(basis)
+# basis_fd.plot()
+# fpca = FPCA(n_components=2)
+# fpca.fit(basis_fd)
+# fpca.components_.plot()
+
+# FPCAPlot(
+#     basis_fd.mean(),
+#     fpca.components_,
+#     factor=30,
+#     fig=plt.figure(figsize=(6, 2 * 4)),
+#     n_rows=2,
+# ).plot()
 
 
 from skfda.misc.metrics import l2_distance, l2_norm
 from skfda.preprocessing.dim_reduction import FPCA
 
+data = pd.read_csv(r'data\Kernels\2023_02_07\Prusa_merged.csv')
 
-target = data.loc[data['asset']=="VF-2_2", "0.0":]
+sample = Sample(data)
+labels = sample.labels.unique()
+
+
+fd_dict = sample.FData()
+
+fd_dict_top = fd_dict['top']
+
+target_idx = sample.labels == labels[0]
+target = fd_dict_top[target_idx]
+
 np.random.seed(0)
-train_ind = target.index[0] + np.random.choice(27, 25, replace=False)
-train = target.loc[train_ind, :]
-test = pd.concat([target.drop(train_ind), data.loc[data['asset']!="VF-2_2", "0.0":]])
-
-train_set = skfda.representation.FDataGrid(train.values, train.columns.astype(float))
-test_set = skfda.representation.FDataGrid(test.values, train.columns.astype(float))
-
-test_set_labels = data['asset'].loc[test.index].values
+train_ind = target_idx.idxmax() + np.random.choice(target.shape[0], 25, replace=False)
+test_ind = sample.index.difference(train_ind)
+train = fd_dict_top[train_ind]
+train_y = sample.labels.loc[train_ind].values
+test = fd_dict_top[test_ind]
+test_y = sample.labels.loc[test_ind].values
 
 
+target_curve_mean = train.mean()
+tcm = target_curve_mean.data_matrix.reshape(-1)
+top = find_extreme_grid(tcm, key = 'top')
 
-fpca_clean = FPCA(n_components=10)
-fpca_clean.fit(train_set)
-train_set_hat = fpca_clean.inverse_transform(
-    fpca_clean.transform(train_set)
-)
 
-err_train = l2_distance(
-    train_set,
-    train_set_hat
-) / l2_norm(train_set)
+basis = BSpline(knots=top)
+train_set_basis = train.to_basis(basis)
+test_set_basis = test.to_basis(basis)
 
-test_set_hat = fpca_clean.inverse_transform(
-    fpca_clean.transform(test_set)
-)
-err_test = l2_distance(
-    test_set,
-    test_set_hat
-) / l2_norm(test_set)
 
-err_thresh = err_train.max()*1.25
+test_set_labels = sample.labels.loc[test_ind].values
 
-print('Flagged outliers: ')
-print(test_set_labels[err_test >= err_thresh])
-print('Flagged nonoutliers: ')
-print(test_set_labels[err_test < err_thresh])
 
-np.quantile(err_train, 0.99)
+# fpca_clean = FPCA(n_components=train_set_basis.n_samples)
+
+
+# fpca_clean.fit(train_set_basis)
+# cumulative_variance = fpca_clean.explained_variance_ratio_.cumsum()
+# plt.plot(cumulative_variance)
+# plt.hlines(0.95, 0, fpca_clean.n_components, linestyle = '--', color = 'red')
+# best_n_components = np.where(cumulative_variance > 0.95)[0][0]
+
+# print(f"Best number of components: {best_n_components}")
+
+# fpca_clean = FPCA(n_components=best_n_components)
+fpca_clean = FPCA(n_components=3)
+fpca_clean.fit(train_set_basis)
+
+# fpca_clean.components_.plot()
+
+
+train_scores = fpca_clean.transform(train_set_basis)
+train_set_hat_basis = fpca_clean.inverse_transform(train_scores)
+
+err_train_basis = l2_distance(
+    train_set_basis,
+    train_set_hat_basis
+) / l2_norm(train_set_basis)
+
+err_train_basis.min(), err_train_basis.max()
+
+test_scores = fpca_clean.transform(test_set_basis)
+
+test_set_hat_basis = fpca_clean.inverse_transform(test_scores)
+
+err_test_basis = l2_distance(
+    test_set_basis,
+    test_set_hat_basis
+) / l2_norm(test_set_basis)
+
+
+err_thresh = err_train_basis.max()*1.25
+
+plt.plot(err_test_basis, 'o')
+plt.plot(err_train_basis, 'o')
+plt.hlines(err_thresh, 0, len(err_test_basis), linestyle = '--', color = 'red')
+
+err_test_basis/err_train_basis.max()
+
+# plt.plot(range(len(err_test_basis)),err_test_basis, 'o')
+# plt.plot(range(len(err_train_basis)),err_train_basis, 'o')
+
+from sklearn.svm import OneClassSVM
+from sklearn.model_selection import GridSearchCV
+
+train = train_scores
+test = test_scores
+
+
