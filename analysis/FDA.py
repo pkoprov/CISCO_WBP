@@ -5,12 +5,6 @@ import skfda
 from skfda.representation.basis import BSpline
 from tqdm import tqdm
 from skfda.misc.metrics import l2_distance, l2_norm
-from skfda.preprocessing.dim_reduction import FPCA
-from sklearn.cluster import KMeans
-from sklearn.ensemble import IsolationForest
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
-
 
 
 def figure():
@@ -29,9 +23,6 @@ def is_convertible_to_float(value):
         return True
     except ValueError:
         return False
-
-
-plt.ion()
 
 
 def find_extreme_grid(array:np.array, key = 'top'):
@@ -165,6 +156,7 @@ def plot_FPCA_results(sample, labels, label, train_ind, test_ind, y_test, test_e
 
     plt.pause(0.5)
 
+
 def calculate_errors(train_set_basis, test_set_basis, fpca_clean):
     train_scores = fpca_clean.transform(train_set_basis)
     test_scores = fpca_clean.transform(test_set_basis)
@@ -209,43 +201,3 @@ if __name__ == "__main__":
             
             plt.subplot(2,1,n+1)
             plot_FPCA_results(sample, labels, label, train_ind, test_ind, y_test, test_errors, train_errors)
-
-
-    fd_dict = sample.FData()
-
-    fd_dict_top = fd_dict['top']
-
-
-    for label in labels:
-        target_idx = sample.labels == label
-        target = fd_dict_top[target_idx]
-
-        np.random.seed(0)
-        train_ind = target_idx.idxmax() + np.random.choice(target.shape[0], 25, replace=False)
-        test_ind = sample.index.difference(train_ind)
-        train = fd_dict_top[train_ind]
-        train_y = sample.labels.loc[train_ind].values
-        test = fd_dict_top[test_ind]
-
-
-        target_curve_mean = train.mean()
-
-        tcm = target_curve_mean.data_matrix.reshape(-1)
-        top = target_curve_mean.grid_points[0][np.argsort(tcm)[-100:]]
-        bottom = target_curve_mean.grid_points[0][np.argsort(tcm)[:100]]
-        knots = np.concatenate([bottom, top])
-        knots.sort()
-        
-        basis = BSpline(knots=knots)
-        train_basis = train.to_basis(basis)
-        test_basis = test.to_basis(basis)
-
-        plt.figure()
-        test_errors = l2_distance(train_basis.mean(), train_basis) / l2_norm(train_basis.mean())
-        train_errors = l2_distance(train_basis.mean(), test_basis) / l2_norm(train_basis.mean())
-        plt.plot(test_errors, 'o')
-        plt.plot(train_errors, 'o')
-        plt.pause(0.1)
-
-
-    test_set_labels = sample.labels.loc[test_ind].values
