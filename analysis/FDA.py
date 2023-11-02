@@ -4,6 +4,13 @@ import numpy as np
 import skfda
 from skfda.representation.basis import BSpline
 from tqdm import tqdm
+from skfda.misc.metrics import l2_distance, l2_norm
+from skfda.preprocessing.dim_reduction import FPCA
+from sklearn.cluster import KMeans
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
 
 
 def figure():
@@ -45,6 +52,18 @@ def find_extreme_grid(array:np.array, key = 'top'):
     return grid
 
 
+def align_curves(fd):
+    from skfda.preprocessing.registration import landmark_elastic_registration_warping
+    extreme_pts = fd.data_matrix.argmax(axis=1).reshape(-1)
+    val, count = np.unique(extreme_pts, return_counts=True)
+    mode = val[count.argmax()]
+    lim = mode - 100, mode + 100
+    landmarks = (fd.data_matrix.reshape(fd.shape[0],-1)[:, lim[0]:lim[1]].argmax(axis=1).reshape(-1,1) + lim[0])/1000
+    warping = landmark_elastic_registration_warping(fd, landmarks)
+    fd_registered = fd.compose(warping)
+    return fd_registered
+
+
 class Sample(pd.DataFrame):
 
     def __init__(self, data):
@@ -52,6 +71,7 @@ class Sample(pd.DataFrame):
         self.labels = self.iloc[:,0]
         self.columns = [float(col) if is_convertible_to_float(col) else col for col in self.columns]
         self.numeric = self.iloc[:,1:].astype(float)
+        self.numeric.columns = self.numeric.columns.astype(float)
         self._top_bottom = None  # Initialize the private attribute
         self._top_bottom_filled = None # Initialize the private attribute
         self.grid = self.numeric.columns
@@ -126,165 +146,106 @@ class Sample(pd.DataFrame):
                     
             return self._FData
 
-  
+
+def plot_FPCA_results(sample, labels, label, train_ind, test_ind, y_test, test_errors_fpca, train_errors_fpca):
+    plt.plot(train_ind,np.log(train_errors_fpca), 'o', color = 'blue', fillstyle='none', label = 'train')
+    plt.plot(test_ind[y_test==label], np.log(test_errors_fpca[y_test==label]), 'o', color = 'blue', label = 'test target')
+    plt.plot(test_ind[y_test!=label], np.log(test_errors_fpca[y_test!=label]), 'o', color = 'red', label = 'test other')
+    
+    err_thresh = train_errors_fpca.max()
+    plt.hlines(np.log(err_thresh), 0, sample.shape[0], linestyle = '--', color = 'red', label = 'threshold')
+    plt.title("L2 distance FPCA")
+    plt.legend()
+    plt.vlines([(sample.labels == label).idxmax() for label in labels],
+                plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color = 'black',
+                 linestyle = '--', label='label change')
+    # add text to very label change
+    for label in labels:
+        plt.text((sample.labels == label).idxmax()+10, plt.gca().get_ylim()[1]-0.05, label)
+
+    plt.pause(0.5)
+
+def calculate_errors(train_set_basis, test_set_basis, fpca_clean):
+    train_scores = fpca_clean.transform(train_set_basis)
+    test_scores = fpca_clean.transform(test_set_basis)
+    train_set_hat_basis = fpca_clean.inverse_transform(train_scores)
+    test_set_hat_basis = fpca_clean.inverse_transform(test_scores)
+    print("Calculating l2 distance for test data")
+    test_errors_fpca = l2_distance(test_set_basis, test_set_hat_basis) / l2_norm(test_set_basis)
+    print("Calculating l2 distance for train data")
+    train_errors_fpca = l2_distance(train_set_basis, train_set_hat_basis) / l2_norm(train_set_basis)
+    return test_errors_fpca,train_errors_fpca
+
+if __name__ == "__main__":
+    data = pd.read_csv(r'data\Kernels\2023_02_07\Prusa_merged.csv')
+
+    sample = Sample(data)
+    labels = sample.labels.unique()
+    fd_dict = sample.FData()
+
+    for label in labels:
+        np.random.seed(0)
+        # Define train and test indices
+        target_idx = sample.index[sample.labels == label]
+        train_ind = target_idx[0]+np.random.choice(target_idx.shape[0], 25, replace=False)
+        test_ind = sample.index.difference(train_ind)
+        y_test = sample.labels.loc[test_ind].values
+        
+        plt.figure()
+        for n, key in enumerate(['top', 'bottom']):
+            train = fd_dict[key][train_ind]
+            test = fd_dict[key][test_ind]
+            target_curve_mean = train.mean()
+            tcm = target_curve_mean.data_matrix.reshape(-1)
+            knots = find_extreme_grid(tcm, key = key) 
+
+            basis = BSpline(knots=knots)
+            print(f"Fitting basis to {key} train data")
+            train_basis = train.to_basis(basis)
+            print(f"Fitting basis to {key} test data")
+            test_basis = test.to_basis(basis)      
+            test_errors = l2_distance(test_basis,train_basis.mean())/l2_norm(train_basis.mean())
+            train_errors = l2_distance(train_basis,train_basis.mean())/l2_norm(train_basis.mean())
+            
+            plt.subplot(2,1,n+1)
+            plot_FPCA_results(sample, labels, label, train_ind, test_ind, y_test, test_errors, train_errors)
 
 
+    fd_dict = sample.FData()
 
-# limits_df  = sample.top_bottom_filled
-
-# limits_df['top'].loc[:20].T.plot()
-# plt.figure()
-# limits_df['top'].loc[-20:].T.plot()
-
-# # plot top and bottom shapes
-# for i in range(40,42):
-#     for var in ['top', 'bottom']:
-#         col = limits_df[var].loc[i]
-#         col.plot()
+    fd_dict_top = fd_dict['top']
 
 
+    for label in labels:
+        target_idx = sample.labels == label
+        target = fd_dict_top[target_idx]
 
-# fd_dict = sample.FData()
-# fd = fd_dict['top']
-
-# # plot mean of curves and curves
-# target_curve = fd[target_idx]
-# target_curve.plot(axes = plt.gca(), alpha = 0.1, color = "black")
-# target_curve_mean = target_curve.mean()
-# target_curve_mean.mean().plot(axes = plt.gca(),color = "blue")
-
-# tcm = target_curve_mean.data_matrix.reshape(-1)
-# top = find_extreme_grid(tcm, key = 'top')
-
-# basis_top = BSpline(knots=top)
-# basis_curve = target_curve.to_basis(basis_top)
+        np.random.seed(0)
+        train_ind = target_idx.idxmax() + np.random.choice(target.shape[0], 25, replace=False)
+        test_ind = sample.index.difference(train_ind)
+        train = fd_dict_top[train_ind]
+        train_y = sample.labels.loc[train_ind].values
+        test = fd_dict_top[test_ind]
 
 
-# target_curve_mean.to_basis(basis_top).plot()
-# for i in range(basis_curve.shape[0]):
-#     basis_curve[i].plot(axes = plt.gca(), color = "red", linestyle = '--', alpha = 0.5)
-#     plt.pause(0.1)
-#     input()
-#     plt.gca().get_lines()[-1].remove()
+        target_curve_mean = train.mean()
+
+        tcm = target_curve_mean.data_matrix.reshape(-1)
+        top = target_curve_mean.grid_points[0][np.argsort(tcm)[-100:]]
+        bottom = target_curve_mean.grid_points[0][np.argsort(tcm)[:100]]
+        knots = np.concatenate([bottom, top])
+        knots.sort()
+        
+        basis = BSpline(knots=knots)
+        train_basis = train.to_basis(basis)
+        test_basis = test.to_basis(basis)
+
+        plt.figure()
+        test_errors = l2_distance(train_basis.mean(), train_basis) / l2_norm(train_basis.mean())
+        train_errors = l2_distance(train_basis.mean(), test_basis) / l2_norm(train_basis.mean())
+        plt.plot(test_errors, 'o')
+        plt.plot(train_errors, 'o')
+        plt.pause(0.1)
 
 
-# plt.gca().get_lines()[-1].remove()
-
-# from skfda.preprocessing.dim_reduction import FPCA
-# from skfda.exploratory.visualization import FPCAPlot
-
-
-# target_curve.plot()
-# fpca_discretized = FPCA(n_components=2)
-# fpca_discretized.fit(target_curve)
-# fpca_discretized.components_.plot()
-# basis = BSpline(knots=top)
-# basis_fd = target_curve.to_basis(basis)
-# basis_fd.plot()
-# fpca = FPCA(n_components=2)
-# fpca.fit(basis_fd)
-# fpca.components_.plot()
-
-# FPCAPlot(
-#     basis_fd.mean(),
-#     fpca.components_,
-#     factor=30,
-#     fig=plt.figure(figsize=(6, 2 * 4)),
-#     n_rows=2,
-# ).plot()
-
-
-from skfda.misc.metrics import l2_distance, l2_norm
-from skfda.preprocessing.dim_reduction import FPCA
-
-data = pd.read_csv(r'data\Kernels\2023_02_07\Prusa_merged.csv')
-
-sample = Sample(data)
-labels = sample.labels.unique()
-
-
-fd_dict = sample.FData()
-
-fd_dict_top = fd_dict['top']
-
-target_idx = sample.labels == labels[0]
-target = fd_dict_top[target_idx]
-
-np.random.seed(0)
-train_ind = target_idx.idxmax() + np.random.choice(target.shape[0], 25, replace=False)
-test_ind = sample.index.difference(train_ind)
-train = fd_dict_top[train_ind]
-train_y = sample.labels.loc[train_ind].values
-test = fd_dict_top[test_ind]
-test_y = sample.labels.loc[test_ind].values
-
-
-target_curve_mean = train.mean()
-tcm = target_curve_mean.data_matrix.reshape(-1)
-top = find_extreme_grid(tcm, key = 'top')
-
-
-basis = BSpline(knots=top)
-train_set_basis = train.to_basis(basis)
-test_set_basis = test.to_basis(basis)
-
-
-test_set_labels = sample.labels.loc[test_ind].values
-
-
-# fpca_clean = FPCA(n_components=train_set_basis.n_samples)
-
-
-# fpca_clean.fit(train_set_basis)
-# cumulative_variance = fpca_clean.explained_variance_ratio_.cumsum()
-# plt.plot(cumulative_variance)
-# plt.hlines(0.95, 0, fpca_clean.n_components, linestyle = '--', color = 'red')
-# best_n_components = np.where(cumulative_variance > 0.95)[0][0]
-
-# print(f"Best number of components: {best_n_components}")
-
-# fpca_clean = FPCA(n_components=best_n_components)
-fpca_clean = FPCA(n_components=3)
-fpca_clean.fit(train_set_basis)
-
-# fpca_clean.components_.plot()
-
-
-train_scores = fpca_clean.transform(train_set_basis)
-train_set_hat_basis = fpca_clean.inverse_transform(train_scores)
-
-err_train_basis = l2_distance(
-    train_set_basis,
-    train_set_hat_basis
-) / l2_norm(train_set_basis)
-
-err_train_basis.min(), err_train_basis.max()
-
-test_scores = fpca_clean.transform(test_set_basis)
-
-test_set_hat_basis = fpca_clean.inverse_transform(test_scores)
-
-err_test_basis = l2_distance(
-    test_set_basis,
-    test_set_hat_basis
-) / l2_norm(test_set_basis)
-
-
-err_thresh = err_train_basis.max()*1.25
-
-plt.plot(err_test_basis, 'o')
-plt.plot(err_train_basis, 'o')
-plt.hlines(err_thresh, 0, len(err_test_basis), linestyle = '--', color = 'red')
-
-err_test_basis/err_train_basis.max()
-
-# plt.plot(range(len(err_test_basis)),err_test_basis, 'o')
-# plt.plot(range(len(err_train_basis)),err_train_basis, 'o')
-
-from sklearn.svm import OneClassSVM
-from sklearn.model_selection import GridSearchCV
-
-train = train_scores
-test = test_scores
-
-
+    test_set_labels = sample.labels.loc[test_ind].values
