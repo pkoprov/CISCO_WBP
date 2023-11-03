@@ -7,19 +7,25 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 from skfda.representation.basis import BSpline
-from skfda.misc.metrics import l2_distance, l2_norm
+from skfda.misc.metrics import l2_distance, l2_norm, linf_distance, linf_norm
 from FDA import Sample, find_extreme_grid
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+def softmax(x, train):
+    return np.exp(x) / np.sum(np.exp(train), axis=0)
+
+
 
 def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, key):
-    plt.plot(train_ind, np.log(train_errors), 'o', color='blue', fillstyle='none', label='train')
-    plt.plot(test_ind[y_test == label], np.log(test_errors[y_test == label]), 'o', color='blue', label='test target')
-    plt.plot(test_ind[y_test != label], np.log(test_errors[y_test != label]), 'o', color='red', label='test other')
+    train_scores = softmax(train_errors, train_errors)
+    test_scores = softmax(test_errors, train_errors)
+    plt.plot(train_ind, train_scores, 'o', color='blue', fillstyle='none', label='train')
+    plt.plot(test_ind[y_test == label], test_scores[y_test == label], 'o', color='blue', label='test target')
+    plt.plot(test_ind[y_test != label], test_scores[y_test != label], 'o', color='red', label='test other')
 
-    err_thresh = np.percentile(train_errors, 99)
-    plt.hlines(np.log(err_thresh), 0, len(labels), linestyle='--', color='red', label='threshold')
+    err_thresh = np.percentile(train_scores, 95)
+    plt.hlines(err_thresh, 0, len(labels), linestyle='--', color='red', label='threshold')
     plt.title(f"Errors for {label} using {key} samples")
     plt.legend()
     plt.vlines([(labels == label).idxmax() for label in unique_labels],
@@ -27,7 +33,7 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
                linestyle='--', label='label change')
 
     for lbl in unique_labels:
-        plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]-0.05, lbl)
+        plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]*0.95, lbl)
 
 
 def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key):
@@ -38,19 +44,19 @@ def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key):
 def l2_errors(fd_dict, train_ind, test_ind, key):
     train = fd_dict[key][train_ind]
     test = fd_dict[key][test_ind]
-    target_curve_mean = train.mean()
-    tcm = target_curve_mean.data_matrix.reshape(-1)
-    knots = find_extreme_grid(tcm, key=key)
+    # target_curve_mean = train.mean()
+    # tcm = target_curve_mean.data_matrix.reshape(-1)
+    # knots = find_extreme_grid(tcm, key=key)
 
-    basis = BSpline(knots=knots)
-    print(f"Fitting basis to {key} train data")
-    train_basis = train.to_basis(basis)
-    print(f"Fitting basis to {key} test data")
-    test_basis = test.to_basis(basis)
+    # basis = BSpline(knots=knots)
+    # print(f"Fitting basis to {key} train data")
+    # train_basis = train.to_basis(basis)
+    # print(f"Fitting basis to {key} test data")
+    # test_basis = test.to_basis(basis)
     print(f"Calculating L2 distance for {key} test data")
-    test_errors = l2_distance(test_basis, train_basis.mean()) / l2_norm(train_basis.mean())
+    test_errors = l2_distance(test, train.mean()) / l2_norm(train.mean())
     print(f"Calculating L2 distance for {key} train data")
-    train_errors = l2_distance(train_basis, train_basis.mean()) / l2_norm(train_basis.mean())
+    train_errors = l2_distance(train, train.mean()) / l2_norm(train.mean())
     return test_errors, train_errors
 
 
@@ -61,7 +67,7 @@ def main(label, fd_dict, labels, unique_labels, indices):
     test_ind = indices.difference(train_ind)
     y_test = labels.loc[test_ind].values
 
-    plt.figure(figsize=[34.4, 13.27])
+    
 
     threads = []
     results_dict = {}  # Use a dictionary to enforce order based on key
@@ -73,14 +79,26 @@ def main(label, fd_dict, labels, unique_labels, indices):
 
     for t in threads:
         t.join()
-
+    both = {'train': [], 'test': []}
+    plt.figure(figsize=[34.4, 13.27])
     # Process results in a specific order
     for n, key in enumerate(['top', 'bottom']):
         test_errors, train_errors = results_dict[key]
         plt.subplot(2, 1, n + 1)
         plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, key)
-
+        both['train'].append(train_errors)
+        both['test'].append(test_errors)
     plt.savefig(f"analysis\\figures\\{label}.png")
+
+    train_errors = np.mean(both['train'], axis=0)
+    test_errors = np.mean(both['test'], axis=0)
+    plt.figure(figsize=[34.4, 13.27])
+    plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, 'both')
+    plt.savefig(f"analysis\\figures\\{label}_both.png")
+
+    
+
+
 
 
 def wrapper_plot_basis(label, fd_dict, labels, unique_labels, indices):
