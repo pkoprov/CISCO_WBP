@@ -43,11 +43,14 @@ def find_extreme_grid(array:np.array, key = 'top'):
     return grid
 
 
-def align_curves(fd):
+def align_curves(fd, key = 'top'):
     from skfda.preprocessing.registration import landmark_elastic_registration_warping
-    extreme_pts = fd.data_matrix.argmax(axis=1).reshape(-1)
-    val, count = np.unique(extreme_pts, return_counts=True)
-    mode = val[count.argmax()]
+    # get max value for each curve
+
+    extreme_pts = np.argmax(fd.data_matrix, axis=1).reshape(-1) if key == 'top' else np.argmin(fd.data_matrix, axis=1).reshape(-1)
+    # plt.plot(extreme_pts/1000, fd.data_matrix[range(fd.shape[0]), extreme_pts[0]], 'o')
+    val, count = np.unique(extreme_pts//100, return_counts=True)
+    mode = val[count.argmax()]*100
     lim = mode - 100, mode + 100
     landmarks = (fd.data_matrix.reshape(fd.shape[0],-1)[:, lim[0]:lim[1]].argmax(axis=1).reshape(-1,1) + lim[0])/1000
     warping = landmark_elastic_registration_warping(fd, landmarks)
