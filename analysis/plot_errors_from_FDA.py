@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import matplotlib.gridspec as gridspec 
 from skfda.misc.metrics import l2_distance, l2_norm
+from sklearn.model_selection import train_test_split
+from FDA import Sample
+
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def softmax(x, train):
     return np.exp(x) / np.sum(np.exp(train), axis=0)
-
 
 
 def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, key):
@@ -60,13 +62,10 @@ def l2_errors(fd_dict, train_ind, test_ind, key):
 
 
 def main(label, fd_dict, labels, unique_labels, indices):
-    np.random.seed(0)
     target_idx = indices[labels == label]
-    train_ind = target_idx[0] + np.random.choice(target_idx.shape[0], 25, replace=False)
+    train_ind,_,_,_ = train_test_split(target_idx, target_idx, test_size=0.3, random_state=123)
     test_ind = indices.difference(train_ind)
     y_test = labels.loc[test_ind].values
-
-    
 
     threads = []
     results_dict = {}  # Use a dictionary to enforce order based on key
