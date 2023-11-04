@@ -6,9 +6,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-from skfda.representation.basis import BSpline
-from skfda.misc.metrics import l2_distance, l2_norm, linf_distance, linf_norm
-from FDA import Sample, find_extreme_grid
+import matplotlib.gridspec as gridspec 
+from skfda.misc.metrics import l2_distance, l2_norm
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -26,14 +25,14 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
 
     err_thresh = np.percentile(train_scores, 95)
     plt.hlines(err_thresh, 0, len(labels), linestyle='--', color='red', label='threshold')
-    plt.title(f"Errors for {label} using {key} samples")
+    plt.title(f"Errors for {label} using {key} curves")
     plt.legend()
     plt.vlines([(labels == label).idxmax() for label in unique_labels],
                plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black',
                linestyle='--', label='label change')
 
     for lbl in unique_labels:
-        plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]*0.95, lbl)
+        plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]*0.99, lbl)
 
 
 def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key):
@@ -93,16 +92,72 @@ def main(label, fd_dict, labels, unique_labels, indices):
     train_errors = np.mean(both['train'], axis=0)
     test_errors = np.mean(both['test'], axis=0)
     plt.figure(figsize=[34.4, 13.27])
+    gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
+    plt.subplot(gs[0])
     plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, 'both')
+    cm = confusion_matrix(train_errors, test_errors, y_test, label)
+    
+    plt.subplot(gs[1])
+    plot_confusion_matrix(cm)
+    # plot metrics under confusion matrix centered at the middle of the plot horizontally and put under the confusion matrix
+    met = metrics(cm)
+    plt.text(0.5, -0.25, f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}",
+              horizontalalignment='center', transform=plt.gca().transAxes, fontsize=14)
     plt.savefig(f"analysis\\figures\\{label}_both.png")
 
-    
+def confusion_matrix(train_errors, test_errors, y_test, label):
+        train_scores = softmax(train_errors, train_errors)
+        test_scores = softmax(test_errors, train_errors)
+        err_thresh = np.percentile(train_scores, 95)
+        act_pos = np.where(y_test!=label)[0]
+        act_neg = np.where(y_test==label)[0]
+        pred_pos = np.where(test_scores > err_thresh)[0]  
+        pred_neg = np.where(test_scores <= err_thresh)[0]
 
+        TP = len(np.intersect1d(pred_pos, act_pos))
+        TN = len(np.intersect1d(pred_neg, act_neg))
+        FP = len(np.intersect1d(pred_pos, act_neg))
+        FN = len(np.intersect1d(pred_neg, act_pos))
 
+        confusion_matrix = np.array([[TP, FN], [FP, TN]])
+        return confusion_matrix
 
+def metrics(confusion_matrix):
+    TP = confusion_matrix[0][0]
+    FN = confusion_matrix[0][1]
+    FP = confusion_matrix[1][0]
+    TN = confusion_matrix[1][1]
+
+    sensitivity = TP / (TP + FN)
+    specificity = TN / (TN + FP)
+    precision = TP / (TP + FP)
+    F1 = 2 * (precision * sensitivity) / (sensitivity + precision)
+    return sensitivity, specificity, precision, F1
 
 def wrapper_plot_basis(label, fd_dict, labels, unique_labels, indices):
     return main(label, fd_dict, labels, unique_labels, indices)
+
+
+def plot_confusion_matrix(cm):
+
+    plt.imshow(cm, interpolation='nearest', cmap='Blues')
+    plt.title("Confusion matrix")
+    
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.xticks([0, 1], ['Negative', 'Positive'])
+    plt.yticks([0, 1], ['Negative', 'Positive'])
+    import itertools
+    thresh = cm.max() / 2
+
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, cm[i, j],
+                 horizontalalignment="center", fontsize=20,
+                 color="white" if cm[i, j] > thresh else "black")
+    
+    plt.vlines(0.5, 1.5, 0.5, color='black')
+    plt.hlines(0.5, -0.5, 1.5, color='black')
+    
 
 
 if __name__ == '__main__':
