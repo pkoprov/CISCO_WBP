@@ -53,12 +53,12 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
         plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]*0.99, lbl)
 
 
-def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key):
-    test_errors, train_errors = l2_errors(fd_dict, train_ind, test_ind, key)
-    results_dict[key] = (test_errors, train_errors)  # Save results in dictionary
+def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label):
+    test_errors, train_errors, model = l2_errors(fd_dict, train_ind, test_ind, key,target_idx, label)
+    results_dict[key] = (test_errors, train_errors, model)  # Save results in dictionary
 
 
-def l2_errors(fd_dict, train_ind, test_ind, key):
+def l2_errors(fd_dict, train_ind, test_ind, key,target_idx, label):
     train = fd_dict[key][train_ind]
     test = fd_dict[key][test_ind]
     # target_curve_mean = train.mean()
@@ -69,17 +69,36 @@ def l2_errors(fd_dict, train_ind, test_ind, key):
     # print(f"Fitting basis to {key} train data")
     # train_basis = train.to_basis(basis)
     # print(f"Fitting basis to {key} test data")
-    # test_basis = test.to_basis(basis)
-    print(f"Calculating L2 distance for {key} test data")
-    test_errors = l2_distance(test, train.mean()) / l2_norm(train.mean())
-    print(f"Calculating L2 distance for {key} train data")
-    train_errors = l2_distance(train, train.mean()) / l2_norm(train.mean())
-    return test_errors, train_errors
+    # test_basis = test.to_basis(basis)   
+    if not os.path.exists(f"analysis\\models\\{label}_{key}_fpca.pkl"):
+        print(f"Fitting FPCA to train {key} data")
+        fpca_clean = FPCA(n_components=1)
+        fpca_clean.fit(fd_dict[key][target_idx])
+    else:
+        with open(f"analysis\\models\\{label}_{key}_fpca.pkl", 'rb') as f:
+            fpca_clean = pickle.load(f)
+
+    train_set_hat = fpca_clean.inverse_transform(
+        fpca_clean.transform(train)
+    )
+
+    train_errors = l2_distance(train_set_hat, train) / l2_norm(train)
+
+    test_set_hat = fpca_clean.inverse_transform(
+        fpca_clean.transform(test)
+    )
+    test_errors = l2_distance(test_set_hat, test) / l2_norm(test)
+
+    # print(f"Calculating L2 distance for {key} test data")
+    # test_errors = l2_distance(test, train.mean()) / l2_norm(train.mean())
+    # print(f"Calculating L2 distance for {key} train data")
+    # train_errors = l2_distance(train, train.mean()) / l2_norm(train.mean())
+    return test_errors, train_errors, fpca_clean
 
 
 def main(label, fd_dict, labels, unique_labels, indices):
     target_idx = indices[labels == label]
-    train_ind,_,_,_ = train_test_split(target_idx, target_idx, test_size=0.3, random_state=123)
+    train_ind,_,_,_ = train_test_split(target_idx, target_idx, test_size=0.2, random_state=123)
     test_ind = indices.difference(train_ind)
     y_test = labels.loc[test_ind].values
 
@@ -87,7 +106,7 @@ def main(label, fd_dict, labels, unique_labels, indices):
     results_dict = {}  # Use a dictionary to enforce order based on key
 
     for key in ['top', 'bottom']:
-        t = threading.Thread(target=l2_errors_threaded, args=(results_dict, fd_dict, train_ind, test_ind, key))
+        t = threading.Thread(target=l2_errors_threaded, args=(results_dict, fd_dict, train_ind, test_ind, key,target_idx,label))
         threads.append(t)
         t.start()
 
@@ -97,9 +116,13 @@ def main(label, fd_dict, labels, unique_labels, indices):
     plt.figure(figsize=[34.4, 13.27])
     # Process results in a specific order
     for n, key in enumerate(['top', 'bottom']):
-        test_errors, train_errors = results_dict[key]
+        test_errors, train_errors, model = results_dict[key]
         plt.subplot(2, 1, n + 1)
         plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, key)
+
+        with open(f"analysis\\models\\{label}_{key}_fpca.pkl", 'wb') as f:
+            pickle.dump(model, f)
+
         both['train'].append(train_errors)
         both['test'].append(test_errors)
     plt.savefig(f"analysis\\figures\\{label}.png")
@@ -118,7 +141,7 @@ def main(label, fd_dict, labels, unique_labels, indices):
     met = metrics(cm)
     plt.text(0.5, -0.25, f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}",
               horizontalalignment='center', transform=plt.gca().transAxes, fontsize=14)
-    plt.savefig(f"analysis\\figures\\{label}_both.png")
+    plt.savefig(f"analysis\\figures\\{label}_both_FPCA1.png")
 
 def confusion_matrix(train_errors, test_errors, y_test, label):
         train_scores = softmax(train_errors, train_errors)
