@@ -21,6 +21,12 @@ except ModuleNotFoundError:
 from skfda.preprocessing.dim_reduction import FPCA
 
 
+
+def error_threshold(train_scores):
+    return np.percentile(train_scores, 5)-np.percentile(train_scores, 0)+train_scores.max()
+
+
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def softmax(x, train):
@@ -34,7 +40,8 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
     plt.plot(test_ind[y_test == label], test_scores[y_test == label], 'o', color='blue', label='test target')
     plt.plot(test_ind[y_test != label], test_scores[y_test != label], 'o', color='red', label='test other')
 
-    err_thresh = np.percentile(train_scores, 95)
+    err_thresh = error_threshold(train_scores)
+    
     plt.hlines(err_thresh, 0, len(labels), linestyle='--', color='red', label='threshold')
     plt.title(f"Errors for {label} using {key} curves")
     plt.legend()
@@ -116,7 +123,9 @@ def main(label, fd_dict, labels, unique_labels, indices):
 def confusion_matrix(train_errors, test_errors, y_test, label):
         train_scores = softmax(train_errors, train_errors)
         test_scores = softmax(test_errors, train_errors)
-        err_thresh = np.percentile(train_scores, 95)
+
+        err_thresh = error_threshold(train_scores)
+
         act_pos = np.where(y_test!=label)[0]
         act_neg = np.where(y_test==label)[0]
         pred_pos = np.where(test_scores > err_thresh)[0]  
