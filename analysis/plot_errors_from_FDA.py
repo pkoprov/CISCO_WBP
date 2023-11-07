@@ -45,7 +45,7 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
     plt.hlines(err_thresh, 0, len(labels), linestyle='--', color='red', label='threshold')
     plt.title(f"Errors for {label} using {key} curves")
     plt.legend()
-    plt.vlines([(labels == label).idxmax() for label in unique_labels],
+    plt.vlines([(labels == label).idxmax()-0.5 for label in unique_labels],
                plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black',
                linestyle='--', label='label change')
 
