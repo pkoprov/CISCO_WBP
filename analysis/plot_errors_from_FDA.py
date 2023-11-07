@@ -6,10 +6,19 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-import matplotlib.gridspec as gridspec 
+import matplotlib.gridspec as gridspec
 from skfda.misc.metrics import l2_distance, l2_norm
 from sklearn.model_selection import train_test_split
-from FDA import Sample
+from skfda.representation.basis import BSpline
+try:
+    from FDA import Sample, find_extreme_grid
+except ModuleNotFoundError:
+    from analysis.FDA import Sample
+    asset = "1"
+    label = "VF-2_1"
+    key = 'top'
+    plt.ion()
+from skfda.preprocessing.dim_reduction import FPCA
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
