@@ -60,7 +60,6 @@ def load_model(filename):
 
 
 def error_threshold(train_scores):
-    # return np.median(train_scores)+3*np.std(train_scores)
     return np.quantile(train_scores, 0.95)
 
 
@@ -69,28 +68,35 @@ def softmax(x, train):
 
 
 def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, key):
+    # Applying the softmax function to normalize train errors
     train_scores = softmax(train_errors, train_errors)
+    # Applying the softmax function to normalize test errors based on train errors
     test_scores = softmax(test_errors, train_errors)
-    plt.plot(train_ind, train_scores, 'o', color='blue',
-             fillstyle='none', label='train')
-    plt.plot(test_ind[y_test == label], test_scores[y_test ==
-             label], 'o', color='blue', label='test target')
-    plt.plot(test_ind[y_test != label], test_scores[y_test !=
-             label], 'o', color='red', label='test other')
+    
+    # Plotting training scores with blue circle markers
+    plt.plot(train_ind, train_scores, 'o', color='blue', fillstyle='none', label='train')
+    # Plotting test scores for the correct label with blue circle markers
+    plt.plot(test_ind[y_test == label], test_scores[y_test == label], 'o', color='blue', label='test target')
+    # Plotting test scores for the incorrect label with red circle markers
+    plt.plot(test_ind[y_test != label], test_scores[y_test != label], 'o', color='red', label='test other')
 
+    # Calculating the error threshold based on the training scores
     err_thresh = error_threshold(train_scores)
 
-    plt.hlines(err_thresh, 0, len(labels), linestyle='--',
-               color='red', label='threshold')
+    # Drawing a horizontal line representing the error threshold
+    plt.hlines(err_thresh, 0, len(labels), linestyle='--', color='red', label='threshold')
+    # Setting the title of the plot indicating the label and the key used
     plt.title(f"Errors for {label} using {key} curves")
+    # Displaying the legend of the plot
     plt.legend()
+    # Drawing vertical dashed lines to indicate label changes
     plt.vlines([(labels == label).idxmax()-0.5 for label in unique_labels],
-               plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black',
-               linestyle='--', label='label change')
+               plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black', linestyle='--', label='label change')
 
+    # Annotating the unique labels on the plot for better readability
     for lbl in unique_labels:
-        plt.text((labels == lbl).idxmax()+10,
-                 plt.gca().get_ylim()[1]*0.99, lbl)
+        plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]*0.99, lbl)
+
 
 
 def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label):
@@ -100,29 +106,42 @@ def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_i
     results_dict[key] = (test_errors, train_errors, model)
 
 
+
 def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
+    # Extract training and testing data for the given 'key' from feature dictionary
     train = fd_dict[key][train_ind]
     test = fd_dict[key][test_ind]
 
+    # Check if a model for the given label and key has already been saved to avoid re-fitting
     if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
+        # If the model doesn't exist, fit a new FPCA (Functional Principal Component Analysis) model on target index data
         print(f"Fitting FPCA to train {key} data")
         fpca_clean = FPCA(n_components=1)
         fpca_clean.fit(fd_dict[key][target_idx])
     else:
+        # If the model exists, load the FPCA model from the saved file
         fpca_clean = load_model(f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
 
+    # Perform FPCA transformation and inverse transformation to get the reconstructed training set
     train_set_hat = fpca_clean.inverse_transform(
         fpca_clean.transform(train)
     )
 
+    # Calculate the L2 distance between the original and reconstructed training set, 
+    # normalized by the L2 norm of the original training set
     train_errors = l2_distance(train_set_hat, train) / l2_norm(train)
 
+    # Perform FPCA transformation and inverse transformation to get the reconstructed testing set
     test_set_hat = fpca_clean.inverse_transform(
         fpca_clean.transform(test)
     )
+    # Calculate the L2 distance between the original and reconstructed testing set, 
+    # normalized by the L2 norm of the original testing set
     test_errors = l2_distance(test_set_hat, test) / l2_norm(test)
 
+    # Return the normalized test errors, train errors, and the fitted or loaded FPCA model
     return test_errors, train_errors, fpca_clean
+
 
 
 def main(label, fd_dict, labels, unique_labels, indices):
