@@ -120,7 +120,7 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
         fpca_clean.fit(fd_dict[key][target_idx])
     else:
         # If the model exists, load the FPCA model from the saved file
-        fpca_clean = load_model(f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
+        fpca_clean = load_model(f"{MODEL_DIR}\{label}_{key}_fpca.pkl")["model"]
 
     # Perform FPCA transformation and inverse transformation to get the reconstructed training set
     train_set_hat = fpca_clean.inverse_transform(
@@ -171,8 +171,9 @@ def main(label, fd_dict, labels, unique_labels, indices):
         plot_errors(labels, unique_labels, label, train_ind,
                     test_ind, y_test, test_errors, train_errors, key)
 
-        if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
-            save_model(model, f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
+        # if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
+        save_model({"model": model, "threshold": error_threshold(
+                train_errors)}, f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
 
         both['train'].append(train_errors)
         both['test'].append(test_errors)
