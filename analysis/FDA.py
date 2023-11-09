@@ -74,6 +74,13 @@ class Sample(pd.DataFrame):
 
     def top_bottom_idx(self,row = 'all', lim = 'all'):
         ''' Property returning the indexes of top and bottom of a sample in 0.01 windows'''
+        match row:
+            case 'all':
+                row = range(self.shape[0])
+            case int():
+                row = [row]
+            case list():
+                pass
         match lim:
             case 'all':
                 if not self._top_bottom:
@@ -81,7 +88,9 @@ class Sample(pd.DataFrame):
                 else:
                     for key in ['top', 'bottom']:
                         if key not in self._top_bottom:
-                            self._calculate_top_bottom_idx(row, key)                  
+                            self._calculate_top_bottom_idx(row, key)
+                        elif not all(i in self._top_bottom[key].index for i in row):
+                            self._calculate_top_bottom_idx(row, key)
             case _:
                 if lim not in self._top_bottom:
                     self._calculate_top_bottom_idx(row, lim)
@@ -89,14 +98,17 @@ class Sample(pd.DataFrame):
         return self._top_bottom
 
     def _calculate_top_bottom_idx(self, row = 'all', lim = 'all'):
-        ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
+        ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''         
+            
+        df = self.numeric.loc[row]
+        
         match lim:
             case 'all':
                 for key in ['top', 'bottom']:
                     self._calculate_top_bottom_idx(row, key)
             case _:
                 print(f"Calculating {lim} 10 indices")
-                var = self.numeric[self.numeric > 0] if lim == 'top' else self.numeric[self.numeric < 0]
+                var = df[df > 0] if lim == 'top' else df[df < 0]
                 var.fillna(0, inplace=True)
                 self._top_bottom[lim] = pd.DataFrame()
                 final_n = round(var.columns[-1], 2)
@@ -113,12 +125,6 @@ class Sample(pd.DataFrame):
                 grouped = var.groupby(bins, axis = 1, observed=True)
                 self._top_bottom[lim] = grouped.agg(lambda x: x.idxmax(axis=1) if lim == "top" else x.idxmin(axis=1))
 
-                    # # Apply a lambda to drop duplicates and keep only the unique values in each row
-                    # unique = ms.apply(lambda row: pd.Series(row.unique()), axis=1)
-
-                    # # Concatenate the unique values with the '_top_bottom[key]' DataFrame
-                    # self._top_bottom[key] = unique
-
 
     
     def top_bottom_filled(self):
@@ -127,15 +133,19 @@ class Sample(pd.DataFrame):
             self._calculate_top_bottom_filled()
         return self._top_bottom_filled
 
-    def _calculate_top_bottom_filled(self):
+    def _calculate_top_bottom_filled(self, row = 'all', lim = 'all'):
         '''Funtion to interpolate the missing x values'''
-        self._top_bottom_filled = {'top': [], 'bottom': []}
-        for key in self.top_bottom_idx:
-            # linearly interpolate and add 0 as a starting point
-            lim = self.top_bottom_idx[key].apply(lambda row: np.interp(self.grid, [0]+row.dropna().tolist(), [0] + self.numeric.loc[row.name, row.dropna()].tolist()), axis=1)
-            df = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
-            df[0] = 0
-            self._top_bottom_filled[key] = df
+        match lim:
+            case 'all':
+                self._top_bottom_filled = {'top': [], 'bottom': []}
+                for key in self.top_bottom_idx:
+                    # linearly interpolate and add 0 as a starting point
+                    lim = self.top_bottom_idx[key].apply(lambda row: np.interp(self.grid, [0]+row.dropna().tolist(), [0] + self.numeric.loc[row.name, row.dropna()].tolist()), axis=1)
+                    df = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
+                    df[0] = 0
+                    self._top_bottom_filled[key] = df
+            case _:
+                self._top_bottom_filled = {'top': pd.DataFrame(), 'bottom': pd.DataFrame()}
         return self._top_bottom_filled
     
 
