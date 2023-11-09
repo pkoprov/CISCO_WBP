@@ -66,37 +66,61 @@ class Sample(pd.DataFrame):
         self.columns = [float(col) if is_convertible_to_float(col) else col for col in self.columns]
         self.numeric = self.iloc[:,1:].astype(float)
         self.numeric.columns = self.numeric.columns.astype(float)
-        self._top_bottom = None  # Initialize the private attribute
+        self._top_bottom = {}  # Initialize the private attribute
         self._top_bottom_filled = None # Initialize the private attribute
         self.grid = self.numeric.columns
         self._FData = {}
         
 
-    @property
-    def top_bottom_idx(self):
+    def top_bottom_idx(self,row = 'all', lim = 'all'):
         ''' Property returning the indexes of top and bottom of a sample in 0.01 windows'''
-        if self._top_bottom is None:
-            self._calculate_top_bottom_idx()
+        match lim:
+            case 'all':
+                if not self._top_bottom:
+                    self._calculate_top_bottom_idx(row, lim)
+                else:
+                    for key in ['top', 'bottom']:
+                        if key not in self._top_bottom:
+                            self._calculate_top_bottom_idx(row, key)                  
+            case _:
+                if lim not in self._top_bottom:
+                    self._calculate_top_bottom_idx(row, lim)
+                
         return self._top_bottom
 
-    def _calculate_top_bottom_idx(self):
+    def _calculate_top_bottom_idx(self, row = 'all', lim = 'all'):
         ''' Function to find the indexes of top and bottom of a sample in 0.01 windows'''
-        positive = self.numeric[self.numeric > 0]
-        negative = self.numeric[self.numeric < 0]
-        self._top_bottom = {key:pd.DataFrame() for key in ['top', 'bottom']}
-        final_n = round(self.numeric.columns[-1], 2)
-        for var, key in zip([positive, negative], self._top_bottom):
-            for n in tqdm(np.round(np.arange(0, final_n, 0.01), 2), desc=f"Processing {key}"):
-                try:
-                    chunk = var.loc[:, n:round(n + 0.01, 2)]
-                    ms = chunk.idxmax(axis=1) if key == "top" else chunk.idxmin(axis=1)
-                    concatenated = pd.concat([self._top_bottom[key].iloc[:, -1:], ms], axis=1, ignore_index=True)
-                    unique = concatenated.apply(lambda row: pd.Series(row.unique()), axis=1)
-                    self._top_bottom[key] = pd.concat([self._top_bottom[key], unique.iloc[:, -1]], axis=1, ignore_index=True)
-                except Exception as e:
-                    pass
+        match lim:
+            case 'all':
+                for key in ['top', 'bottom']:
+                    self._calculate_top_bottom_idx(row, key)
+            case _:
+                print(f"Calculating {lim} 10 indices")
+                var = self.numeric[self.numeric > 0] if lim == 'top' else self.numeric[self.numeric < 0]
+                var.fillna(0, inplace=True)
+                self._top_bottom[lim] = pd.DataFrame()
+                final_n = round(var.columns[-1], 2)
+
+                # Create a binning series using `cut` to define bins every 0.01 units
+                bin_labels = np.arange(0, final_n, 0.01)
+                # Define bin edges and labels
+                bin_edges = np.arange(0, final_n + 0.01, 0.01)  # Ensure the last bin edge is included
+                bin_labels = np.round(bin_edges[:-1], 2)  # Labels should be one less than bin edges
+
+                # Create bins
+                bins = pd.cut(var.columns, bins=bin_edges, labels=bin_labels, include_lowest=True)
+                # Group by the bins and apply the idxmax or idxmin function
+                grouped = var.groupby(bins, axis = 1, observed=True)
+                self._top_bottom[lim] = grouped.agg(lambda x: x.idxmax(axis=1) if lim == "top" else x.idxmin(axis=1))
+
+                    # # Apply a lambda to drop duplicates and keep only the unique values in each row
+                    # unique = ms.apply(lambda row: pd.Series(row.unique()), axis=1)
+
+                    # # Concatenate the unique values with the '_top_bottom[key]' DataFrame
+                    # self._top_bottom[key] = unique
+
+
     
-    @property
     def top_bottom_filled(self):
         ''' Property returning the DataFrames of top and bottom of a sample with filled values'''
         if self._top_bottom_filled is None:
