@@ -67,24 +67,24 @@ def softmax(x, train):
     return np.exp(x) / np.sum(np.exp(train), axis=0)
 
 
-def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_errors, train_errors, key):
-    # Applying the softmax function to normalize train errors
-    train_scores = softmax(train_errors, train_errors)
-    # Applying the softmax function to normalize test errors based on train errors
-    test_scores = softmax(test_errors, train_errors)
-    
+def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_scores, train_scores, key):
+
     # Plotting training scores with blue circle markers
-    plt.plot(train_ind, train_scores, 'o', color='blue', fillstyle='none', label='train')
+    plt.plot(train_ind, train_scores, 'o', color='blue',
+             fillstyle='none', label='train')
     # Plotting test scores for the correct label with blue circle markers
-    plt.plot(test_ind[y_test == label], test_scores[y_test == label], 'o', color='blue', label='test target')
+    plt.plot(test_ind[y_test == label], test_scores[y_test ==
+             label], 'o', color='blue', label='test target')
     # Plotting test scores for the incorrect label with red circle markers
-    plt.plot(test_ind[y_test != label], test_scores[y_test != label], 'o', color='red', label='test other')
+    plt.plot(test_ind[y_test != label], test_scores[y_test !=
+             label], 'o', color='red', label='test other')
 
     # Calculating the error threshold based on the training scores
     err_thresh = error_threshold(train_scores)
 
     # Drawing a horizontal line representing the error threshold
-    plt.hlines(err_thresh, 0, len(labels), linestyle='--', color='red', label='threshold')
+    plt.hlines(err_thresh, 0, len(labels), linestyle='--',
+               color='red', label='threshold')
     # Setting the title of the plot indicating the label and the key used
     plt.title(f"Errors for {label} using {key} curves")
     # Displaying the legend of the plot
@@ -95,8 +95,8 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
 
     # Annotating the unique labels on the plot for better readability
     for lbl in unique_labels:
-        plt.text((labels == lbl).idxmax()+10, plt.gca().get_ylim()[1]*0.99, lbl)
-
+        plt.text((labels == lbl).idxmax()+10,
+                 plt.gca().get_ylim()[1]*0.99, lbl)
 
 
 def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label):
@@ -104,7 +104,6 @@ def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_i
         fd_dict, train_ind, test_ind, key, target_idx, label)
     # Save results in dictionary
     results_dict[key] = (test_errors, train_errors, model)
-
 
 
 def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
@@ -127,7 +126,7 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
         fpca_clean.transform(train)
     )
 
-    # Calculate the L2 distance between the original and reconstructed training set, 
+    # Calculate the L2 distance between the original and reconstructed training set,
     # normalized by the L2 norm of the original training set
     train_errors = l2_distance(train_set_hat, train) / l2_norm(train)
 
@@ -135,13 +134,12 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
     test_set_hat = fpca_clean.inverse_transform(
         fpca_clean.transform(test)
     )
-    # Calculate the L2 distance between the original and reconstructed testing set, 
+    # Calculate the L2 distance between the original and reconstructed testing set,
     # normalized by the L2 norm of the original testing set
     test_errors = l2_distance(test_set_hat, test) / l2_norm(test)
 
     # Return the normalized test errors, train errors, and the fitted or loaded FPCA model
     return test_errors, train_errors, fpca_clean
-
 
 
 def main(label, fd_dict, labels, unique_labels, indices):
@@ -167,26 +165,34 @@ def main(label, fd_dict, labels, unique_labels, indices):
     # Process results in a specific order
     for n, key in enumerate(['top', 'bottom']):
         test_errors, train_errors, model = results_dict[key]
+
+        # Applying the softmax function to normalize train errors
+        train_scores = softmax(train_errors, train_errors)
+        # Applying the softmax function to normalize test errors based on train errors
+        test_scores = softmax(test_errors, train_errors)
+        
         plt.subplot(2, 1, n + 1)
         plot_errors(labels, unique_labels, label, train_ind,
-                    test_ind, y_test, test_errors, train_errors, key)
+                    test_ind, y_test, test_scores, train_scores, key)
 
         # if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
         save_model({"model": model, "threshold": error_threshold(
                 train_errors)}, f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
 
-        both['train'].append(train_errors)
-        both['test'].append(test_errors)
+        both['train'].append(train_scores)
+        both['test'].append(test_scores)
     plt.savefig(f"{FIGURES_DIR}\{label}.png")
 
-    train_errors = np.mean(both['train'], axis=0)
-    test_errors = np.mean(both['test'], axis=0)
+    train_scores = np.mean(both['train'], axis=0)
+    test_scores = np.mean(both['test'], axis=0)
+
     plt.figure(figsize=[34.4, 13.27])
     gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
     plt.subplot(gs[0])
+    
     plot_errors(labels, unique_labels, label, train_ind, test_ind,
-                y_test, test_errors, train_errors, 'both')
-    cm = confusion_matrix(train_errors, test_errors, y_test, label)
+                y_test, test_scores, train_scores, 'both')
+    cm = confusion_matrix(train_scores, test_scores, y_test, label)
 
     plt.subplot(gs[1])
     plot_confusion_matrix(cm)
