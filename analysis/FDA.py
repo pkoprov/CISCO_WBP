@@ -91,14 +91,45 @@ class Sample(pd.DataFrame):
 
 
     def _calculate_top_bottom_idx(self, row, lim):
+        print(f"Calculating {lim} {row} indices")
+        # Extract the relevant part of the DataFrame as a NumPy array
         df = self.numeric.loc[row]
-        final_n = round(df.columns[-1], 2)
-        bin_edges = np.arange(0, final_n + 0.01, 0.01)
-        bins = pd.cut(df.columns, bins=bin_edges, labels=bin_edges[:-1], include_lowest=True)
-
         var = df.clip(lower=0) if lim == 'top' else df.clip(upper=0)
-        grouped = var.groupby(bins, axis=1, observed=True)
-        self._top_bottom[lim] = grouped.agg(lambda x: x.idxmax(axis=1) if lim == "top" else x.idxmin(axis=1))
+        df = var.to_numpy()
+        final_n = round(self.numeric.columns[-1], 2)
+
+        # Create bin edges and labels
+        bin_edges = np.arange(0, final_n + 0.01, 0.01)
+        bin_labels = np.round(bin_edges[:-1], 2)
+        
+        # Assign each column to a bin
+        col_to_bin = np.digitize(self.numeric.columns.astype(float), bin_edges) - 1
+
+        # Prepare the result array
+        result = np.full((df.shape[0], len(bin_edges) - 1), np.nan)
+        
+        # Apply the computation for each bin
+        for i, _ in enumerate(bin_labels):
+            mask = col_to_bin == i
+            if not np.any(mask):
+                continue
+            
+            masked_df = df[:, mask]
+
+            if lim == 'top':
+                idx_max = np.nanargmax(df[:, mask], axis=1)
+            else:  # 'bottom'
+                idx_min = np.nanargmin(df[:, mask], axis=1)
+
+            # Convert relative indices to absolute column indices
+            abs_idx = np.where(mask)[0][idx_max if lim == 'top' else idx_min]
+            for row_idx in range(df.shape[0]):
+                if np.isnan(masked_df[row_idx]).all():  # Check if all values in the row slice are NaN
+                    continue
+                result[row_idx, i] = abs_idx[row_idx]
+
+        # Convert the result back to DataFrame
+        self._top_bottom[lim] = pd.DataFrame(result/1000, index=self.numeric.loc[row].index, columns=bin_labels)
 
 
     def top_bottom_filled(self, row='all', lim='all'):
@@ -107,10 +138,13 @@ class Sample(pd.DataFrame):
         return self._top_bottom_filled
 
     def _calculate_top_bottom_filled(self, row, lim):
+        print(f"Calculating {lim} {row} filled")
         if row == 'all':
-            row = range(self.shape[0])
+            row_indices = np.arange(self.shape[0])
         elif isinstance(row, int):
-            row = [row]
+            row_indices = np.array([row])
+        else:  # row is a list
+            row_indices = np.array(row)
         
         if lim == 'all':
             keys_to_process = ['top', 'bottom']
@@ -118,13 +152,28 @@ class Sample(pd.DataFrame):
             keys_to_process = [lim]
 
         for key in keys_to_process:
-            if key not in self._top_bottom or not all(i in self._top_bottom[key].index for i in row):
+            if key not in self._top_bottom or not np.all(np.isin(row_indices, self._top_bottom[key].index)):
                 self.top_bottom_idx(row, key)
-            
-            lim_df = self._top_bottom[key].apply(lambda r: np.interp(self.grid, [0] + r.tolist(), [0] + self.numeric.loc[r.name, r.values].tolist()), axis=1)
-            self._top_bottom_filled[key] = pd.DataFrame(lim_df.values.tolist(), index=lim_df.index, columns=self.grid)
 
-    
+            # Perform interpolation using numpy
+            top_bottom_df = self._top_bottom[key]
+            numeric_df = self.numeric
+            grid_points = self.grid.to_numpy()
+            interpolated_results = []
+
+            for row_idx in row_indices:
+                if row_idx in top_bottom_df.index and row_idx in numeric_df.index:
+                    # Get valid indices and corresponding values
+                    valid_indices = top_bottom_df.loc[row_idx].dropna()
+                    x_points = np.insert(valid_indices.to_numpy(), 0, 0)
+                    y_values_at_indices = numeric_df.loc[row_idx, valid_indices.index]
+                    y_points = np.insert(y_values_at_indices.to_numpy(), 0, 0)
+
+                    interpolated = np.interp(grid_points, x_points, y_points)
+                    interpolated_results.append(interpolated)
+
+            self._top_bottom_filled[key] = pd.DataFrame(interpolated_results, index=self.numeric.index[row_indices], columns=self.grid)
+
 
     def FData(self, row='all', lim='all', plot=False):
         if row == 'all':
