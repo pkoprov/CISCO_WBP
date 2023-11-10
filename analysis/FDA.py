@@ -67,7 +67,7 @@ class Sample(pd.DataFrame):
         self.numeric = self.iloc[:,1:].astype(float)
         self.numeric.columns = self.numeric.columns.astype(float)
         self._top_bottom = {}  # Initialize the private attribute
-        self._top_bottom_filled = None # Initialize the private attribute
+        self._top_bottom_filled = {} # Initialize the private attribute
         self.grid = self.numeric.columns
         self._FData = {}
         
@@ -92,7 +92,7 @@ class Sample(pd.DataFrame):
                         elif not all(i in self._top_bottom[key].index for i in row):
                             self._calculate_top_bottom_idx(row, key)
             case _:
-                if lim not in self._top_bottom:
+                if lim not in self._top_bottom or not all(i in self._top_bottom[lim].index for i in row):
                     self._calculate_top_bottom_idx(row, lim)
                 
         return self._top_bottom
@@ -125,27 +125,27 @@ class Sample(pd.DataFrame):
                 grouped = var.groupby(bins, axis = 1, observed=True)
                 self._top_bottom[lim] = grouped.agg(lambda x: x.idxmax(axis=1) if lim == "top" else x.idxmin(axis=1))
 
-
-    
-    def top_bottom_filled(self):
+    def top_bottom_filled(self, row = 'all', lim = 'all'):
         ''' Property returning the DataFrames of top and bottom of a sample with filled values'''
-        if self._top_bottom_filled is None:
-            self._calculate_top_bottom_filled()
+        if not self._top_bottom:
+            self._calculate_top_bottom_filled(row , lim)
         return self._top_bottom_filled
 
     def _calculate_top_bottom_filled(self, row = 'all', lim = 'all'):
         '''Funtion to interpolate the missing x values'''
+        row = [row] if isinstance(row, int) else row
         match lim:
             case 'all':
-                self._top_bottom_filled = {'top': [], 'bottom': []}
-                for key in self.top_bottom_idx:
-                    # linearly interpolate and add 0 as a starting point
-                    lim = self.top_bottom_idx[key].apply(lambda row: np.interp(self.grid, [0]+row.dropna().tolist(), [0] + self.numeric.loc[row.name, row.dropna()].tolist()), axis=1)
-                    df = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
-                    df[0] = 0
-                    self._top_bottom_filled[key] = df
+                for key in ['top', 'bottom']:
+                    self._calculate_top_bottom_filled(row, key)
             case _:
-                self._top_bottom_filled = {'top': pd.DataFrame(), 'bottom': pd.DataFrame()}
+                if lim not in self._top_bottom or not all(i in self._top_bottom[lim].index for i in row):
+                    self.top_bottom_idx(row, lim)
+        
+        for key in self._top_bottom:
+            # linearly interpolate and add 0 as a starting point
+            lim = self._top_bottom[key].apply(lambda row: np.interp(self.grid, [0]+row.tolist(), [0] + self.numeric.loc[row.name,row.values].tolist()), axis=1)
+            self._top_bottom_filled[key] = pd.DataFrame(lim.values.tolist(), index=lim.index, columns=self.grid)
         return self._top_bottom_filled
     
 
