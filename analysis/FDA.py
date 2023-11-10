@@ -153,25 +153,24 @@ class Sample(pd.DataFrame):
 
             '''Function to convert the top and bottom shapes to a FData representation'''
             match row:
-                case int():
-                    row = np.array(row).flatten().tolist()
-                    self.FData(row = row, lim=lim, plot=plot)
                 case 'all':
-                    self.FData(row = [int(i) for i in self.index.values], lim=lim, plot=plot)
+                    row = range(self.shape[0])
+                case int():
+                    row = [row]
                 case list():
-                    match lim:
-                        case 'all':                       
-                            [self.FData(row = row, lim=key, plot=plot) for key in ['top', 'bottom']]
-                        case _:
-                            y = self.top_bottom_filled[lim].loc[row]
-                            y = y.to_numpy().reshape(len(row), -1, 1)
+                    pass
+            if lim not in self._top_bottom_filled or not all(i in self._top_bottom_filled[lim].index for i in row):
+                self.top_bottom_filled(row, lim)
 
-                            curve = skfda.FDataGrid(y, grid_points=self.grid)
-                            if plot:
-                                curve.plot(axes = plt.gca(), color = "black", alpha = 0.5)
-                            self._FData[lim] = curve
+            y = self._top_bottom_filled[lim].loc[row]
+            y = y.to_numpy().reshape(len(row), -1, 1)
 
-                    
+            self._FData[lim] = skfda.FDataGrid(y, grid_points=self.grid)
+            if plot:
+                self._FData[lim].plot(axes = plt.gca(), alpha = 0.5)
+                plt.legend(self._top_bottom_filled[lim].index)
+                plt.title(f"{lim} shapes")
+                   
             return self._FData
 
 
