@@ -278,13 +278,7 @@ if __name__ == '__main__':
     labels = sample.labels
     unique_labels = labels.unique()
     indices = sample.index
-
-    pickled_data = f'data/{asset}_data.pkl'
-    if not os.path.exists(pickled_data):
-        fd_dict = sample.FData()
-        save_model(fd_dict, pickled_data)
-    else:
-        fd_dict = load_model(pickled_data)
+    fd_dict = sample.FData()
 
     with Pool(len(unique_labels)) as p:
         args = [(label, fd_dict, labels, unique_labels, indices)
