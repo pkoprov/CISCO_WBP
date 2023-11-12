@@ -133,7 +133,7 @@ class Sample(pd.DataFrame):
 
 
     def top_bottom_filled(self, row='all', lim='all'):
-        if not self._top_bottom:
+        if lim not in self._top_bottom or not all(i in self._top_bottom[lim].index for i in row):
             self._calculate_top_bottom_filled(row, lim)
         return self._top_bottom_filled
 
@@ -156,19 +156,16 @@ class Sample(pd.DataFrame):
                 self.top_bottom_idx(row, key)
 
             # Perform interpolation using numpy
-            top_bottom_df = self._top_bottom[key]
-            numeric_df = self.numeric
             grid_points = self.grid.to_numpy()
             interpolated_results = []
 
             for row_idx in row_indices:
-                if row_idx in top_bottom_df.index and row_idx in numeric_df.index:
+                if row_idx in self._top_bottom[key].index and row_idx in self.numeric.index:
                     # Get valid indices and corresponding values
-                    valid_indices = top_bottom_df.loc[row_idx].dropna()
-                    x_points = np.insert(valid_indices.to_numpy(), 0, 0)
-                    y_values_at_indices = numeric_df.loc[row_idx, valid_indices.index]
-                    y_points = np.insert(y_values_at_indices.to_numpy(), 0, 0)
-
+                    valid_indices = self._top_bottom[key].loc[row_idx].dropna()
+                    x_points = valid_indices.to_numpy()
+                    y_points = self.numeric.loc[row_idx, valid_indices.values].to_numpy()
+                    # Perform interpolation
                     interpolated = np.interp(grid_points, x_points, y_points)
                     interpolated_results.append(interpolated)
 
@@ -181,10 +178,9 @@ class Sample(pd.DataFrame):
         elif isinstance(row, int):
             row = [row]
 
-        if lim not in self._top_bottom_filled or not all(i in self._top_bottom_filled[lim].index for i in row):
-            self.top_bottom_filled(row, lim)
-
         for key in ['top', 'bottom'] if lim == 'all' else [lim]:
+            if key not in self._top_bottom_filled or not all(i in self._top_bottom_filled[key].index for i in row):
+                self.top_bottom_filled(row, key)
             print(f"Converting {key} {row} to FData")
             y = self._top_bottom_filled[key].loc[row].to_numpy().reshape(len(row), -1, 1)
             self._FData[key] = skfda.FDataGrid(y, grid_points=self.grid)
