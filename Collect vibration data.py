@@ -2,6 +2,8 @@ import time
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
 import matplotlib.pyplot as plt
+# import matplotlib 
+# matplotlib.use('tkagg', force=True) 
 import pandas as pd
 import os
 from datetime import datetime
@@ -43,10 +45,12 @@ def measurement_steady():
             if ax > mean + 4 *sd or ax < mean - 4 *sd:
                 start_flag = True
                 print("Start reading")
+                start = time.time()
             else:
                 continue
-
-        data.append([ax, ay, az])
+        
+        timestamp = time.time()
+        data.append([timestamp-start, ax, ay, az])
         if not (ax > mean + 4*sd or ax < mean - 4*sd):
             n += 1
             if n == 500:
@@ -76,15 +80,14 @@ while i < n+1:
     print(f"Collecting sample {i}")
     sample_name = f"{asset_name}_{round(time.time())}"
     data = measurement_steady()
-    df = pd.DataFrame(data[:-100])
+    df = pd.DataFrame(data[:-500])
     if len(df) < 500*duration:
         continue
     
     df.to_csv(f"{folder}/{sample_name}.csv",index=False)
     fig = plt.figure(sample_name)
     fig.set_size_inches(18.5,10)
-    plt.plot(data)
-    plt.plot(data)
+    plt.plot(df.iloc[:,1:])
     plt.savefig(f"{folder}/{sample_name}.png")
     plt.close()
     print(f"Created {sample_name}")
