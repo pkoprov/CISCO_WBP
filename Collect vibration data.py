@@ -1,96 +1,108 @@
 import time
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
 from mpu9250_jmdev.registers import *
 from mpu9250_jmdev.mpu_9250 import MPU9250
-import matplotlib.pyplot as plt
-# import matplotlib 
-# matplotlib.use('tkagg', force=True) 
-import pandas as pd
-import os
-from datetime import datetime
 
-mpu = MPU9250(
-    
-    address_mpu_master=MPU9050_ADDRESS_68, # In 0x68 Address
-    address_mpu_slave=None, 
-    bus=1,
-    gfs=GFS_1000, 
-    afs=AFS_4G, 
-    mfs=AK8963_BIT_16, 
-    mode=AK8963_MODE_C100HZ)
+# Constants
+MPU_ADDRESS = MPU9050_ADDRESS_68
+GFS_SETTING = GFS_1000
+AFS_SETTING = AFS_4G
+MFS_SETTING = AK8963_BIT_16
+MODE_SETTING = AK8963_MODE_C100HZ
+CALIBRATION_DURATION = 2
+THRESHOLD_MULTIPLIER = 4
+STOP_COUNT = 500
 
-mpu.configure() # Apply the settings to the registers.
+def initialize_sensor():
+    mpu = MPU9250(
+        address_mpu_master=MPU_ADDRESS,
+        address_mpu_slave=None, 
+        bus=1,
+        gfs=GFS_SETTING, 
+        afs=AFS_SETTING, 
+        mfs=MFS_SETTING, 
+        mode=MODE_SETTING)
+    mpu.configure()
+    return mpu
 
-print("Start Calibrating")
-# collect an ambient vibration
-calibration_data = []
-start = time.time()
-while time.time() - start < 2:
-    calibration_data.append(mpu.readAccelerometerMaster()[0])
+def calibrate_sensor(mpu, duration=CALIBRATION_DURATION):
+    calibration_data = []
+    start = time.time()
+    while time.time() - start < duration:
+        calibration_data.append(mpu.readAccelerometerMaster()[0])
+    mean = sum(calibration_data) / len(calibration_data)
+    sd = (sum([(i - mean) ** 2 for i in calibration_data]) / len(calibration_data)) ** 0.5
+    return mean, sd
 
-# calculate the mean and SD of ambient vibration
-mean = sum(calibration_data) / len(calibration_data)
-sd = (sum([(i - mean) ** 2 for i in calibration_data]) / len(calibration_data)) ** 0.5
-
-print("Calibration is done")
-
-def measurement_steady():
+def measurement_steady(mpu, mean, sd):
     start_flag = False
     data = []
-        
+    n = 0
+
     while True:
-        # read the input
         ax, ay, az = mpu.readAccelerometerMaster()
-        # check if the values are exceeding the threshold
         if not start_flag:
-            if ax > mean + 4 *sd or ax < mean - 4 *sd:
+            if abs(ax - mean) > THRESHOLD_MULTIPLIER * sd:
                 start_flag = True
                 print("Start reading")
                 start = time.time()
             else:
                 continue
-        
+
         timestamp = time.time()
-        data.append([timestamp-start, ax, ay, az])
-        if not (ax > mean + 4*sd or ax < mean - 4*sd):
+        data.append([timestamp - start, ax, ay, az])
+        if abs(ax - mean) > THRESHOLD_MULTIPLIER * sd:
+            n = 0
+        else:
             n += 1
-            if n == 500:
+            if n == STOP_COUNT:
                 print("Stop reading")
                 break
-        else:
-            n = 0
-    return (data)
+    return data
 
+def create_directory(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-n = int(input("How many times? "))
-i = 1
-duration = float(input("Approximate duration of move in sec? "))
+def collect_samples(mpu, mean, sd, n, duration, asset_name):
+    folder = os.path.join('data', 'Kernels', datetime.now().date().strftime("%Y_%m_%d"))
+    create_directory(folder)
+    asset_folder = os.path.join(folder, asset_name)
+    create_directory(asset_folder)
 
-asset_name = input("Name of machine? ")
-try:
-    os.mkdir(f'./data/Kernels/{datetime.now().date().strftime("%Y_%m_%d")}')
-except FileExistsError:
-    pass
-try:
-    os.mkdir(f'./data/Kernels/{datetime.now().date().strftime("%Y_%m_%d")}/{asset_name}')
-except FileExistsError:
-    pass
-folder = f'./data/Kernels/{datetime.now().date().strftime("%Y_%m_%d")}/{asset_name}'
+    i = 1
+    while i <= n:
+        print(f"Collecting sample {i}")
+        sample_name = f"{asset_name}_{round(time.time())}"
+        data = measurement_steady(mpu, mean, sd)
+        df = pd.DataFrame(data[:-STOP_COUNT])
+        if len(df) < STOP_COUNT * duration:
+            continue
 
-while i < n+1:
-    print(f"Collecting sample {i}")
-    sample_name = f"{asset_name}_{round(time.time())}"
-    data = measurement_steady()
-    df = pd.DataFrame(data[:-500])
-    if len(df) < 500*duration:
-        continue
-    
-    df.to_csv(f"{folder}/{sample_name}.csv",index=False)
-    fig = plt.figure(sample_name)
-    fig.set_size_inches(18.5,10)
-    plt.plot(df.iloc[:,1:])
-    plt.savefig(f"{folder}/{sample_name}.png")
-    plt.close()
-    print(f"Created {sample_name}")
-    i += 1
+        df.to_csv(os.path.join(asset_folder, f"{sample_name}.csv"), index=False)
+        fig = plt.figure(sample_name)
+        fig.set_size_inches(18.5, 10)
+        plt.plot(df.iloc[:, 1:])
+        plt.savefig(os.path.join(asset_folder, f"{sample_name}.png"))
+        plt.close()
+        print(f"Created {sample_name}")
+        i += 1
 
-print("Done Collecting samples")
+def main():
+    mpu = initialize_sensor()
+    print("Start Calibrating")
+    mean, sd = calibrate_sensor(mpu)
+    print("Calibration is done")
+
+    n = int(input("How many times? "))
+    duration = float(input("Approximate duration of move in sec? "))
+    asset_name = input("Name of machine? ")
+
+    collect_samples(mpu, mean, sd, n, duration, asset_name)
+    print("Done Collecting samples")
+
+if __name__ == "__main__":
+    main()
