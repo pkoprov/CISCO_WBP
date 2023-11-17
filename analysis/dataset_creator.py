@@ -15,7 +15,7 @@ coord_list = ['all', 'x', 'y', 'z']
 # asset_type = "VF"
 # asset_type = "UR"
 asset_type = "PRUSA"
-home = rf"C:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels\{asset_type}"
+home = rf"C:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels\{asset}\{asset_type}"
 sig_len = sig_len_dic[asset_type]
 
 # create a dictionary to store all data
@@ -75,10 +75,6 @@ for name in names:
     named_data = data[globals()[f'df_{asset}_{coord}'][:,0] == name]
     for dat in named_data:
         plt.plot(dat + n*1, color="blue", alpha=0.3)
-
-
-
-
 
 
 ############################################################

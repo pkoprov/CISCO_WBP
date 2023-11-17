@@ -6,7 +6,7 @@ import pandas as pd
 
 
 # read data from each sample and merge into one dataframe
-root = "data/Kernels/2023_02_07/UR-5e_Cary"
+root = r"data\Kernels\UR\UR-5e_Cary"
 
 df_all = pd.DataFrame(columns=["Time"])
 i = 0
@@ -29,7 +29,7 @@ for file in os.listdir(root):
         df_all = df_all.merge(df, on="Time", how="outer")
 
 # sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
-df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:8500, :]
+df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:4000, :]
 
 # deal with missing values
 for row in df_all.iterrows():
