@@ -1,56 +1,52 @@
-import os
-
 import pandas as pd
-from sklearn import metrics, svm
-from sklearn.model_selection import train_test_split
 
-# read data and create dataframes
-length = 3100
+import numpy as np
+import matplotlib.pyplot as plt
 
-coord_list = ['all', 'x', 'y', 'z']
-# create global variables to store x,y,z and xyz data
-for i in range(4):
-    globals()[f'df_UR5_{coord_list[i]}'] = pd.DataFrame()
+from sklearn.metrics import confusion_matrix
+from sklearn import linear_model
 
-home = "data/Kernels/5_7_2022"
-for folder in os.listdir(home):
-    # if "_ex" in folder:
-    if os.path.isdir(f"{home}/{folder}"):
-        for file in os.listdir(f"{home}/{folder}"):
-            if '.csv' in file:
-                df = pd.read_csv(f"{home}/{folder}/{file}")
-                type = pd.Series(file[:7])
-                X = df.iloc[:length, 1]
-                Y = df.iloc[:length, 2]
-                Z = df.iloc[:length, 3]
-                all_coord_df = pd.concat([X, Y, Z, type], ignore_index=True)
-                x_coord_df = pd.concat([X, type], ignore_index=True)
-                y_coord_df = pd.concat([Y, type], ignore_index=True)
-                z_coord_df = pd.concat([Z, type], ignore_index=True)
-                df_UR5_all = pd.concat([df_UR5_all, all_coord_df], axis=1, ignore_index=True)
-                df_UR5_x = pd.concat([df_UR5_x, x_coord_df], axis=1, ignore_index=True)
-                df_UR5_y = pd.concat([df_UR5_y, y_coord_df], axis=1, ignore_index=True)
-                df_UR5_z = pd.concat([df_UR5_z, z_coord_df], axis=1, ignore_index=True)
-##################################################################################################
-# ____________________________________________ SVM ____________________________________________
-##################################################################################################
-data = df_UR5_all.transpose().iloc[:, :-1].to_numpy()
-targets = df_UR5_all.transpose().iloc[:, -1].to_numpy()
-# targets[targets == "UR-5e-1"] = 1
-targets[targets != "UR-5e-4"] = "Not correct"
 
-X_train, X_test, y_train, y_test = train_test_split(data, targets, test_size=0.3)  # 70% training and 30% test
+df = pd.read_csv(f"data/Kernels/2023_02_07/Prusa_merged.csv")
+labels = pd.unique(df["asset"])
+target_df = df.loc[df["asset"] ==labels[7]]
+X_train = target_df.iloc[:22, 1:]
+y_train = target_df["asset"][:22]
+X_test = df.iloc[:, 1:]
+y_test = np.full((X_test.shape[0],), -1)
+y_test[np.where(df["asset"] == labels[7])[0]] = 1
 
-clf = svm.SVC(kernel='linear')  # Linear Kernel
 
-# Train the model using the training sets
-clf.fit(X_train, y_train)
+nu = 1
+accuracy = 0
+j = 0
+for i in range(1, 101):
+    model = linear_model.SGDOneClassSVM(random_state= 123,nu=i/100)
+    model.fit(X_train)
+    y_pred_test = model.predict(X_test)
+    conf = confusion_matrix(y_test, y_pred_test)
+    if conf[0][1]== 0 and conf[1][0] <= 1:
+        accuracy = (conf[0][0]+conf[1][1])/np.sum(conf)
+        nu = i/100
+        print(f"with nu = {i / 100}, accuracy = {accuracy}")
+        if accuracy >= 1:
+            j += 1
+            print(j)
+        else:
+            j = 0
+        if j >= 5 and accuracy ==1:
+            break
+    # print(confusion_matrix(y_test, y_pred_test))
 
-# Predict the response for test dataset
-y_pred = clf.predict(X_test)
 
-print("Accuracy:", metrics.accuracy_score(y_test, y_pred))
-metrics.confusion_matrix(y_test, y_pred)
-metrics.ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
+model = linear_model.SGDOneClassSVM(random_state= 123,nu=1)
+model.fit(X_train)
 
-##################################################################################################
+
+model.offset_ = 0.9*min(model.score_samples(X_train))
+y_pred_test = model.predict(X_test)
+confusion_matrix(y_test, y_pred_test)
+
+plt.plot(model.score_samples(X_test), ".")
+plt.hlines(model.offset_, 0, len(X_test), color="red")
+plt.scatter(np.where(y_test == 1)[0], model.score_samples(X_test)[y_test == 1], color="red")
