@@ -15,12 +15,13 @@ MODE_SETTING = AK8963_MODE_C100HZ
 CALIBRATION_DURATION = 2
 THRESHOLD_MULTIPLIER = 4
 STOP_COUNT = 500
+BUS = int(input("Which printer?\n1. 1 material\n3. Multimaterial\n>>")) if os.path.exists(f'/dev/i2c-3') else 1
 
 def initialize_sensor():
     mpu = MPU9250(
         address_mpu_master=MPU_ADDRESS,
         address_mpu_slave=None, 
-        bus=1,
+        bus=BUS,
         gfs=GFS_SETTING, 
         afs=AFS_SETTING, 
         mfs=MFS_SETTING, 
@@ -106,3 +107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
