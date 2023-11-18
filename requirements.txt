@@ -1,4 +1,4 @@
 pandas
-matplotlib
 mpu9250_jmdev
 smbus2
+matplotlib==3.4
