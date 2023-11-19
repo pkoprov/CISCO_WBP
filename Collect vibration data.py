@@ -69,7 +69,9 @@ def create_directory(path):
         os.makedirs(path)
 
 def collect_samples(mpu, mean, sd, n, duration, asset_name):
-    folder = os.path.join('data', 'Kernels', datetime.now().date().strftime("%Y_%m_%d"))
+    script_path = os.path.abspath(__file__)
+    script_dir = os.path.dirname(script_path)
+    folder = os.path.join(script_dir ,'data', 'Kernels', datetime.now().date().strftime("%Y_%m_%d"))
     create_directory(folder)
     asset_folder = os.path.join(folder, asset_name)
     create_directory(asset_folder)
