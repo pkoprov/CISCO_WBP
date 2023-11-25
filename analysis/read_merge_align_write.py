@@ -24,7 +24,6 @@ plt.ion()
 def get_folder_path():
     # Initialize Tkinter
     root = tk.Tk()
-    root.withdraw()  # We don't want a full GUI, so keep the root window from appearing
 
     # Show an "Open" dialog box and return the path to the selected folder
     folder_path = filedialog.askdirectory()
