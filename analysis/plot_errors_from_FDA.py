@@ -20,8 +20,8 @@ try:
     from FDA import Sample
 except ModuleNotFoundError:
     from analysis.FDA import Sample
-    asset = "3"
-    label = "Prusa_Q"
+    asset = "1"
+    label = "VF-2_1"
     key = 'top'
     plt.ion()
 
@@ -30,7 +30,7 @@ except ModuleNotFoundError:
 ASSET_CHOICES = {'1': 'VF', '2': 'UR', '3': 'Prusa'}
 MODEL_DIR = "analysis/models"
 FIGURES_DIR = "analysis/figures"
-DATA_DIR = "data/Kernels/2023_02_07"
+DATA_DIR = r"data\train_datasets"
 PICKLED_DATA_DIR = "data"
 
 
@@ -114,7 +114,7 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
     # Check if a model for the given label and key has already been saved to avoid re-fitting
     if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
         # If the model doesn't exist, fit a new FPCA (Functional Principal Component Analysis) model on target index data
-        print(f"Fitting FPCA to train {key} data")
+        print(f"Fitting FPCA to train {label} {key} data")
         fpca_clean = FPCA(n_components=1)
         fpca_clean.fit(fd_dict[key][target_idx])
     else:
@@ -274,7 +274,7 @@ if __name__ == '__main__':
     if not asset:
         raise ValueError("Invalid asset choice")
 
-    sample = sample = load_data(asset)
+    sample = load_data(asset)
     labels = sample.labels
     unique_labels = labels.unique()
     indices = sample.index
