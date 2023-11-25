@@ -8,4 +8,4 @@ test.m
 *.Rproj*
 .python-version
 install-pyenv-win.ps1
-__pycache__/*
+*.pyc
