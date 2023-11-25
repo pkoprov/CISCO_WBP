@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 
 # Constants
-ASSET_CHOICES = {'1': 'VF', '2': 'UR', '3': 'Prusa'}
+ASSET_CHOICES = {'1': 'VF', '2': 'UR', '3': 'Prusa', '4': 'Bambu'}
 MODEL_DIR = "analysis/models"
 FIGURES_DIR = "analysis/figures"
 DATA_DIR = r"data\train_datasets"
@@ -122,18 +122,14 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
         fpca_clean = load_model(f"{MODEL_DIR}\{label}_{key}_fpca.pkl")["model"]
 
     # Perform FPCA transformation and inverse transformation to get the reconstructed training set
-    train_set_hat = fpca_clean.inverse_transform(
-        fpca_clean.transform(train)
-    )
+    train_set_hat = fpca_clean.inverse_transform(fpca_clean.transform(train))
 
     # Calculate the L2 distance between the original and reconstructed training set,
     # normalized by the L2 norm of the original training set
     train_errors = l2_distance(train_set_hat, train) / l2_norm(train)
 
     # Perform FPCA transformation and inverse transformation to get the reconstructed testing set
-    test_set_hat = fpca_clean.inverse_transform(
-        fpca_clean.transform(test)
-    )
+    test_set_hat = fpca_clean.inverse_transform(fpca_clean.transform(test))
     # Calculate the L2 distance between the original and reconstructed testing set,
     # normalized by the L2 norm of the original testing set
     test_errors = l2_distance(test_set_hat, test) / l2_norm(test)
@@ -170,14 +166,14 @@ def main(label, fd_dict, labels, unique_labels, indices):
         train_scores = softmax(train_errors, train_errors)
         # Applying the softmax function to normalize test errors based on train errors
         test_scores = softmax(test_errors, train_errors)
-        
+
         plt.subplot(2, 1, n + 1)
         plot_errors(labels, unique_labels, label, train_ind,
                     test_ind, y_test, test_scores, train_scores, key)
 
         # if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
         save_model({"model": model, "threshold": error_threshold(
-                train_errors)}, f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
+            train_errors)}, f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
 
         both['train'].append(train_scores)
         both['test'].append(test_scores)
@@ -189,7 +185,7 @@ def main(label, fd_dict, labels, unique_labels, indices):
     plt.figure(figsize=[34.4, 13.27])
     gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
     plt.subplot(gs[0])
-    
+
     plot_errors(labels, unique_labels, label, train_ind, test_ind,
                 y_test, test_scores, train_scores, 'both')
     cm = confusion_matrix(train_scores, test_scores, y_test, label)
@@ -268,6 +264,7 @@ if __name__ == '__main__':
     1. VF
     2. UR
     3. Prusa
+    4. Bambu
     > """)
 
     asset = ASSET_CHOICES.get(asset.upper(), None)
