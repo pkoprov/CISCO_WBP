@@ -106,7 +106,7 @@ class Sample(pd.DataFrame):
         col_to_bin = np.digitize(self.numeric.columns.astype(float), bin_edges) - 1
 
         # Prepare the result array
-        result = np.full((df.shape[0], len(bin_edges) - 1), np.nan)
+        result = np.full((df.shape[0], bin_edges.shape[0]  - 1), np.nan)
         
         # Apply the computation for each bin
         for i, _ in enumerate(bin_labels):
@@ -124,10 +124,10 @@ class Sample(pd.DataFrame):
             # Convert relative indices to absolute column indices
             abs_idx = np.where(mask)[0][idx_max if lim == 'top' else idx_min]
             for row_idx in range(df.shape[0]):
-                if np.isnan(masked_df[row_idx]).all():  # Check if all values in the row slice are NaN
+                if (masked_df[row_idx]==0).all():  # Check if all values in the row slice are NaN
                     continue
                 result[row_idx, i] = abs_idx[row_idx]
-
+        
         # Convert the result back to DataFrame
         self._top_bottom[lim] = pd.DataFrame(result/1000, index=self.numeric.loc[row].index, columns=bin_labels)
 

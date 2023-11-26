@@ -7,30 +7,19 @@ from scipy.signal import correlate
 from scipy.signal import correlation_lags
 
 
-def shift_for_maximum_correlation(x, y, timed = False):
-    x_full = x
-    y_full = y
-    if x.ndim == 2:
-        x = x_full.iloc[:, 1]
-    if y.ndim == 2:
-        y = y_full.iloc[:, 1]
-    correlation = correlate(x, y, mode="full")
-    lags = correlation_lags(x.size, y.size, mode="full")
+def shift_for_maximum_correlation(benchmark, y):
+    
+    correlation = correlate(benchmark, y, mode="full")
+    lags = correlation_lags(benchmark.size, y.size, mode="full")
     lag = lags[np.argmax(correlation)]
     print(f"Best lag: {lag}")
     if lag < 0:
-        if timed:
-            y_full = np.column_stack([y_full[abs(lag):, 0] - y_full[abs(lag), 0], y_full[abs(lag):, 1:]])
-        elif y_full.ndim == 1:
-            y_full = np.hstack([y[abs(lag):], x[lag:]])
+        y_full = np.hstack([y.iloc[:lag], benchmark.iloc[:-lag]])
     elif lag > 0:
-        if timed:
-            #
-            start = x_full.iloc[:lag, 0]
-            time = np.hstack([start,y_full.iloc[:-lag,0]+start.iloc[-1]+0.001])
-            y_full = np.column_stack([time, np.vstack([x_full.iloc[:lag,1:], y_full.iloc[:-lag,1:]])])
-        elif y_full.ndim == 1:
-            y_full = np.hstack([x[:lag], y[:-lag]])
+        y_full = np.hstack([y.iloc[-lag:], benchmark.iloc[lag:]])
+        
+    else:
+        y_full = y
 
     return y_full, lag
 
