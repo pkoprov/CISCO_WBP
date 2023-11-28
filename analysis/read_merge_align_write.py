@@ -116,8 +116,9 @@ def united_frame():
     for file in os.listdir(os.path.join(root, asset)):
         if ".csv" in file and asset in file:
             i += 1
-            df = pd.read_csv(f"{root}/{asset}/{file}",
-                             names=columns)[["Time", axis]]
+            df = pd.read_csv(f"{root}/{asset}/{file}")
+            df.columns = columns
+            df = df[["Time", axis]]
             df_all = prepare_sample(df, i, df_all )
 
     df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:length, :]
