@@ -25,7 +25,7 @@ def get_folder_path():
     root = tk.Tk()
 
     # Show an "Open" dialog box and return the path to the selected folder
-    folder_path = filedialog.askdirectory()
+    folder_path = filedialog.askdirectory(initialdir = r"D:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels")
     root.destroy()  # Close the Tkinter root window to prevent freezing
     return folder_path
 
