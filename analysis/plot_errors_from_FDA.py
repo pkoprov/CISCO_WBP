@@ -15,11 +15,14 @@ from sklearn.model_selection import train_test_split
 from skfda.preprocessing.dim_reduction import FPCA
 from skfda.misc.metrics import l2_distance, l2_norm
 
+
 # Local imports
 try:
     from FDA import Sample
+    from read_merge_align_write import select_files
 except ModuleNotFoundError:
     from analysis.FDA import Sample
+    from analysis.read_merge_align_write import select_files
     asset = "1"
     label = "VF-2_1"
     key = 'top'
@@ -38,9 +41,10 @@ PICKLED_DATA_DIR = "data"
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-def load_data(asset):
+def load_data(asset=None):
     """Loads and preprocesses the data for the given asset."""
-    data_path = os.path.join(DATA_DIR, f'{asset}_merged.csv')
+    data_path = select_files()[0] if asset == None else os.path.join(
+        DATA_DIR, f'{asset}_merged.csv')
     data = pd.read_csv(data_path)
     sample = Sample(data)
 
