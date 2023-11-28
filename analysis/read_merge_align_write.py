@@ -100,8 +100,18 @@ def united_frame():
     columns = ["Time", "X", "Y", "Z"]
 
     axis = input("Select axis:\nx, y, z\n>>> ").upper()
+    
+    # sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
+    if "UR" in asset:
+        length = 4000
+    elif "VF" in asset:
+        length = 8500
+    elif "Bambu" in asset:
+        length = 4000
+    else:
+        length = int(input("How many seconds of data to take?\n>>> "))*1000
 
-    df_all = pd.DataFrame(columns=['Time'])
+    df_all = pd.DataFrame(np.round(np.arange(0, 8.5, 0.001),3),columns=['Time'])
     i = 0
     for file in os.listdir(os.path.join(root, asset)):
         if ".csv" in file and asset in file:
@@ -110,15 +120,10 @@ def united_frame():
                              names=columns)[["Time", axis]]
             df_all = prepare_sample(df, i, df_all )
 
-    # sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
-    if "UR" in asset:
-        len = 4000
-    elif "VF" in asset:
-        len = 8500
-    else:
-        len = int(input("How many seconds of data to take?\n>>> "))*1000
+    df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:length, :]
 
-    df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:len, :]
+    if df_all.isna().any().any():
+        df_all.fillna(df_all.median(), inplace=True)
 
     # deal with missing values
     for row in df_all.iterrows():
