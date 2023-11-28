@@ -158,7 +158,7 @@ def prepare_sample( df,i=0, df_all=pd.DataFrame(columns=['Time'])):
 
 
 def merge():
-    cmd = input("Merge files? (y/n)\n>>> ")
+    cmd = "y"
     files = []
     while cmd.lower() == 'y':
         print("Select files to merge")
@@ -181,43 +181,11 @@ def merge():
 
     df_total.to_csv(f"{folder_to_save}/{type}_merged.csv", index_label="asset")
 
-# df_all.reset_index(inplace=True)
-# df_all.rename(columns={"index": "asset"}, inplace=True)
-
-# sample = Sample(df_all)
-# fdata = sample.FData()
-
-
-# exclude = np.array([], type(int))
-# for lim in ['top', 'bottom']:
-#     dist = l2_distance(fdata[lim][1:], fdata[lim][0])
-#     exclude = np.append(exclude, np.where(dist > dist.mean() + dist.std()))
-
-# exclude = np.unique(exclude)+1
-# sample = sample.drop(exclude).reset_index(drop=True)
-# fdata = Sample(sample).FData()
-
-# x = df_all.iloc[0, 1:].astype(float)
-# y = df_all.iloc[10, 1:].astype(float)
-# x.plot()
-# y.plot()
-# grid = df_all.columns[1:].values.astype(float)
-
-
-# x_fd = skfda.FDataGrid(x, grid)
-# y_fd = skfda.FDataGrid(y, grid)
-
-# x_fd.plot(axes=plt.gca())
-# y_fd.plot(axes=plt.gca())
-
-
-# l2_distance(x_fd, y_fd)
-
-# fdata["top"].plot()
-# fdata["top"].mean().plot(axes=plt.gca(), linewidth=4)
 if __name__ == "__main__":
-    cmd = input("Create datset for asset or merge datasets (c or m)\n>>> ")
-    if cmd == 'c':
-        main()
-    elif cmd == 'm':
-        merge()
+    cmd = None
+    while cmd != 'q':
+        cmd = input("Create datset for asset or merge datasets (or quit)\n(c\m\q)\n>>> ")
+        if cmd == 'c':
+            main()
+        elif cmd == 'm':
+            merge()
