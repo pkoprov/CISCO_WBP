@@ -4,7 +4,7 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
-# from analysis.FDA import Sample
+
 try:
     from plotting import shift_for_maximum_correlation
 except ModuleNotFoundError:
@@ -12,8 +12,6 @@ except ModuleNotFoundError:
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
-
-# from skfda.misc.metrics import l2_distance
 
 
 plt.ion()
@@ -25,11 +23,10 @@ def get_folder_path():
     root = tk.Tk()
 
     # Show an "Open" dialog box and return the path to the selected folder
-    folder_path = filedialog.askdirectory(initialdir = r"D:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels")
+    folder_path = filedialog.askdirectory(
+        initialdir=r"D:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels")
     root.destroy()  # Close the Tkinter root window to prevent freezing
     return folder_path
-
-# select file
 
 
 def select_files():
@@ -48,12 +45,12 @@ def main():
     # read data from each sample and merge into one dataframe
     df_all, asset, axis, root = united_frame()
     print(root)
-    if os.path.exists(f"{root}/{asset}/benchmark_{axis}.csv"):
-        benchmark = pd.read_csv(
-            f"{root}/{asset}/benchmark_{axis}.csv", index_col=0)
-        benchmark = benchmark.iloc[:, 0]
-    else:
-        benchmark = df_all.iloc[:, 1:].mean(axis=1)
+    # if os.path.exists(f"{root}/{asset}/benchmark_{axis}.csv"):
+    #     benchmark = pd.read_csv(
+    #         f"{root}/{asset}/benchmark_{axis}.csv", index_col=0)
+    #     benchmark = benchmark.iloc[:, 0]
+    # else:
+    #     benchmark = df_all.iloc[:, 1:].mean(axis=1)
 
     # # shift all samples so that they have maximum correlation with benchmark
     # for col in df_all.columns:
@@ -66,7 +63,6 @@ def main():
     # else:
     #     benchmark.index = df_all["Time"]
     #     benchmark.to_csv(f"{root}/{asset}/benchmark_{axis}.csv")
-
 
     df_all = df_all.transpose()
     # set Time to be columns
@@ -100,7 +96,7 @@ def united_frame():
     columns = ["Time", "X", "Y", "Z"]
 
     axis = input("Select axis:\nx, y, z\n>>> ").upper()
-    
+
     # sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
     if "UR" in asset:
         length = 4000
@@ -111,7 +107,8 @@ def united_frame():
     else:
         length = int(input("How many seconds of data to take?\n>>> "))*1000
 
-    df_all = pd.DataFrame(np.round(np.arange(0, 8.5, 0.001),3),columns=['Time'])
+    df_all = pd.DataFrame(
+        np.round(np.arange(0, 8.5, 0.001), 3), columns=['Time'])
     i = 0
     for file in os.listdir(os.path.join(root, asset)):
         if ".csv" in file and asset in file:
@@ -119,9 +116,10 @@ def united_frame():
             df = pd.read_csv(f"{root}/{asset}/{file}")
             df.columns = columns
             df = df[["Time", axis]]
-            df_all = prepare_sample(df, i, df_all )
+            df_all = prepare_sample(df, i, df_all)
 
-    df_all = df_all.sort_values(by="Time").reset_index(drop=True).iloc[:length, :]
+    df_all = df_all.sort_values(by="Time").reset_index(
+        drop=True).iloc[:length, :]
 
     if df_all.isna().any().any():
         df_all.fillna(df_all.median(), inplace=True)
@@ -148,7 +146,8 @@ def united_frame():
     df_all.update(alldata)
     return df_all, asset, axis, root
 
-def prepare_sample( df,i=0, df_all=pd.DataFrame(columns=['Time'])):
+
+def prepare_sample(df, i=0, df_all=pd.DataFrame(columns=['Time'])):
     df.columns = ["Time", f"Sample_{i}"]
     df["Time"] = df["Time"].round(3)
     df.drop_duplicates(["Time"], inplace=True)
@@ -181,10 +180,12 @@ def merge():
 
     df_total.to_csv(f"{folder_to_save}/{type}_merged.csv", index_label="asset")
 
+
 if __name__ == "__main__":
     cmd = None
     while cmd != 'q':
-        cmd = input("Create datset for asset or merge datasets (or quit)\n(c\m\q)\n>>> ")
+        cmd = input(
+            "Create datset for asset or merge datasets (or quit)\n(c\m\q)\n>>> ")
         if cmd == 'c':
             main()
         elif cmd == 'm':
