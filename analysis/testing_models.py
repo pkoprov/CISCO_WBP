@@ -1,19 +1,16 @@
 import os
+import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from skfda.misc.metrics import l2_distance, l2_norm
 from skfda.preprocessing.dim_reduction import FPCA
-# from analysis.plotting import shift_for_maximum_correlation
 import numpy as np
 
-try:
-    from FDA import Sample
-    from read_merge_align_write import select_files
-    from plot_errors_from_FDA import load_model, save_model, error_threshold
-except ModuleNotFoundError:
-    from analysis.FDA import Sample
-    from analysis.read_merge_align_write import select_files
-    from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
+sys.path.append(os.getcwd())
+from analysis.FDA import Sample
+from analysis.read_merge_align_write import select_files
+from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
+from data.merge_X_all import folders_to_process
 
 
 plt.ion()
@@ -43,6 +40,7 @@ def plot_errors():
     assets_str = '\n'.join(assets)
     cmd = input(f"Which asset is a target?\n{assets_str}\n>>> ")
     asset = assets[int(cmd)].split(":")[1].strip()
+    folder_list = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
     i=0
     model_dir = None
     while model_dir is None or not os.path.exists(model_dir):
