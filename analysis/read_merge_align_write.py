@@ -166,7 +166,7 @@ def prepare_sample(df, i=0, df_all=pd.DataFrame(columns=['Time'])):
     return df_all
 
 
-def merge(files=None):
+def merge(files=None, folder=None):
     if files is None:
         cmd = "y"
         files = []
@@ -181,15 +181,18 @@ def merge(files=None):
         files = np.unique(files)
     print(files)
 
-    asset_type = input("What type of asset is this?\n>>>")
+    asset_type = files[0].split('\\')[-2][:-2] if "UR" not in files[0] else "UR"
     df_total = pd.DataFrame()
     for file in files:
         df = pd.read_csv(file, index_col=0)
         df.columns = [float(col) if is_convertible_to_float(
             col) else col for col in df.columns]
         df_total = pd.concat([df_total, df], axis=0)
-
-    filename = save_file(f"{asset_type}_merged.csv")
+    
+    if not folder:
+        filename = save_file(f"{asset_type}_merged.csv")
+    else:
+        filename = os.path.join(folder, f"{asset_type}_merged.csv")
 
     df_total.to_csv(filename, index_label="asset")
     print("saved to ", filename)
