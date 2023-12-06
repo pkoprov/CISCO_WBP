@@ -1,14 +1,8 @@
-from math import e
 import os
 import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-try:
-    from plotting import shift_for_maximum_correlation
-except ModuleNotFoundError:
-    from analysis.plotting import shift_for_maximum_correlation
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
