@@ -10,53 +10,61 @@ from tkinter import filedialog
 
 plt.ion()
 
-
+# Function to check if a string can be converted to a float
+def is_convertible_to_float(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+    
 #  select folder
-def get_folder_path():
+def get_folder_path(folder=r".\data\Kernels"):
+    if folder is None:
+        folder = r".\data\Kernels"
     # Initialize Tkinter
     root = tk.Tk()
 
     # Show an "Open" dialog box and return the path to the selected folder
     folder_path = filedialog.askdirectory(
-        initialdir=r"D:\Users\pkoprov\PycharmProjects\Vibration_Patterns\data\Kernels")
+        initialdir=folder)
     root.destroy()  # Close the Tkinter root window to prevent freezing
     return folder_path
 
 
-def select_files():
+def select_files(init_dir=None):
     # This ensures that we're creating a new Tk instance every time
     root = tk.Tk()
 
     # This should bring up the file dialog
-    file_paths = filedialog.askopenfilenames()
+    file_paths = filedialog.askopenfilenames(initialdir=init_dir)
 
     # Close the root window after selection
     root.destroy()
     return file_paths
 
 
-def main():
+def save_file(file=None,folder = r".\data\Kernels"):
+    root = tk.Tk()
+
+    # Show the save file dialog
+    file_path = filedialog.asksaveasfilename(initialfile=file,
+                                             initialdir=folder,
+                                             defaultextension=".csv",  # You can set a default extension
+                                             # Define file types
+                                             filetypes=[
+                                                 ("CSV files", "*.csv"), ("All files", "*.*")],
+                                             )
+
+    root.destroy()  # Destroy the root window
+
+    return file_path
+
+
+def create_dataset(folder=None):
     # read data from each sample and merge into one dataframe
-    df_all, asset, axis, root = united_frame()
+    df_all, asset, axis, root = united_frame(folder)
     print(root)
-    # if os.path.exists(f"{root}/{asset}/benchmark_{axis}.csv"):
-    #     benchmark = pd.read_csv(
-    #         f"{root}/{asset}/benchmark_{axis}.csv", index_col=0)
-    #     benchmark = benchmark.iloc[:, 0]
-    # else:
-    #     benchmark = df_all.iloc[:, 1:].mean(axis=1)
-
-    # # shift all samples so that they have maximum correlation with benchmark
-    # for col in df_all.columns:
-    #     if col == "Time":
-    #         continue
-    #     # shift df so that it has maximum correlation with df_benchmark
-
-    #     df_all[col] = shift_for_maximum_correlation(benchmark, df_all[col])[0]
-
-    # else:
-    #     benchmark.index = df_all["Time"]
-    #     benchmark.to_csv(f"{root}/{asset}/benchmark_{axis}.csv")
 
     df_all = df_all.transpose()
     # set Time to be columns
@@ -65,13 +73,20 @@ def main():
     # rename indices from Samples to UR-5e_...
     indices = [asset for i in range(df_all.shape[0])]
     df_all.index = indices
+    df_all.index.name = "asset"
     # save to csv
-    df_all.to_csv(f"{root}/{asset}/merged_{axis}.csv")
+    filename = save_file(f"merged_{axis}.csv", folder)
+
+    df_all.to_csv(filename)
+    print("saved to ", filename)
 
 
-def united_frame():
+def united_frame(folder):
     print("Select folder with data")
-    root = get_folder_path()
+    if folder is None:
+        root = get_folder_path(folder)
+    else:
+        root = folder
     if not root:
         exit(0)
 
@@ -89,7 +104,8 @@ def united_frame():
 
     columns = ["Time", "X", "Y", "Z"]
 
-    axis = input("Select axis:\nx, y, z\n>>> ").upper()
+    # axis = input("Select axis:\nx, y, z\n>>> ").upper()
+    axis = "X"
 
     # sort by time and take first 4000 samples for UR-5 and 8500 for VF-2
     if "UR" in asset:
@@ -105,7 +121,7 @@ def united_frame():
         np.round(np.arange(0, 8.5, 0.001), 3), columns=['Time'])
     i = 0
     for file in os.listdir(os.path.join(root, asset)):
-        if ".csv" in file and asset in file:
+        if ".csv" in file and asset in file and "merged" not in file:
             i += 1
             df = pd.read_csv(f"{root}/{asset}/{file}")
             df.columns = columns
@@ -150,29 +166,33 @@ def prepare_sample(df, i=0, df_all=pd.DataFrame(columns=['Time'])):
     return df_all
 
 
-def merge():
-    cmd = "y"
-    files = []
-    while cmd.lower() == 'y':
-        print("Select files to merge")
-        path = select_files()
-        if not path:
-            break
-        print(path)
-        files.extend(path)
+def merge(files=None):
+    if files is None:
+        cmd = "y"
+        files = []
+        while cmd.lower() == 'y':
+            print("Select files to merge")
+            path = select_files(r".\data\Kernels")
+            if not path:
+                break
+            print(path)
+            files.extend(path)
 
-    files = np.unique(files)
+        files = np.unique(files)
     print(files)
 
-    type = input("What type of asset is this?\n>>>")
+    asset_type = input("What type of asset is this?\n>>>")
     df_total = pd.DataFrame()
     for file in files:
         df = pd.read_csv(file, index_col=0)
+        df.columns = [float(col) if is_convertible_to_float(
+            col) else col for col in df.columns]
         df_total = pd.concat([df_total, df], axis=0)
 
-    folder_to_save = get_folder_path()
+    filename = save_file(f"{asset_type}_merged.csv")
 
-    df_total.to_csv(f"{folder_to_save}/{type}_merged.csv", index_label="asset")
+    df_total.to_csv(filename, index_label="asset")
+    print("saved to ", filename)
 
 
 if __name__ == "__main__":
@@ -181,6 +201,6 @@ if __name__ == "__main__":
         cmd = input(
             "Create datset for asset or merge datasets (or quit)\n(c\m\q)\n>>> ")
         if cmd == 'c':
-            main()
+            create_dataset()
         elif cmd == 'm':
             merge()
