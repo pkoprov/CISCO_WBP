@@ -5,6 +5,10 @@ import skfda
 from skfda.representation.basis import BSpline
 from tqdm import tqdm
 from skfda.misc.metrics import l2_distance, l2_norm
+import warnings
+
+# Suppress all UserWarnings
+warnings.filterwarnings('ignore', category=UserWarning)
 
 
 def figure():
