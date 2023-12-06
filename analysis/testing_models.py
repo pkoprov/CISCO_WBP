@@ -23,13 +23,7 @@ def predict_error(fpca, x):
 
 def plot_errors():
     file = select_files(r".\data\Kernels")[0]
-    dir = os.path.dirname(file)
-
-    folder_list = os.listdir("data\Kernels")
-    start_idx = folder_list.index("2023_11_18")
-    stop_idx =  folder_list.index("2023_12_04")+1
-    folder_list = folder_list[start_idx:stop_idx]
-    dir_idx = folder_list.index(dir.split('/')[-1])
+    folder = os.path.dirname(file).split("/")[-1]
 
     df = pd.read_csv(file)
     sample = Sample(df)
@@ -42,18 +36,24 @@ def plot_errors():
     asset = assets[int(cmd)].split(":")[1].strip()
     folder_list = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
     i=0
-    model_dir = None
-    while model_dir is None or not os.path.exists(model_dir):
-        i+=1
-        model_dir = os.path.join("/".join(dir.split('/')[:-1]), folder_list[dir_idx-i], asset)
-
+    new_model_dir = None
+    old_model_dir = folder_list[0]
+    if folder == folder_list[0]:
+        print("Using old model")
+        new_model_dir = old_model_dir
+    else:
+        for i in folder_list[folder_list.index(folder)-1::-1]:
+            if os.path.exists(os.path.join("/".join(file.split('/')[:-2]), i, asset)):
+                new_model_dir = i
+                print("Using model from", new_model_dir)
+                break
 
     total_error = {'old': [], 'new': []}
     thresh = {'old': [], 'new': []}
     for n, lim in enumerate(['top', 'bottom']):
-        old_model = load_model(fr'data\Kernels\2023_12_04\{asset}\{asset}_{lim}_fpca.pkl')
+        old_model = load_model(fr'data\Kernels\{old_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
         old_err = np.log(1/predict_error(old_model, fd[lim]))
-        new_model = load_model(fr'{model_dir}/{asset}_{lim}_fpca.pkl')
+        new_model = load_model(fr'data\Kernels\{new_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
         new_err = np.log(1/predict_error(new_model, fd[lim]))
         thresh['old'].append(old_model["threshold"])
         thresh['new'].append(new_model["threshold"])
