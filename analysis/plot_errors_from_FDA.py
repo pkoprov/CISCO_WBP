@@ -31,6 +31,7 @@ except ModuleNotFoundError:
 
 # Constants
 ASSET_CHOICES = {'1': 'VF', '2': 'UR', '3': 'Prusa', '4': 'Bambu'}
+VERSION_CHOICES = {'0': 'old', '1': 'new'}
 MODEL_DIR = "analysis/models"
 FIGURES_DIR = "analysis/figures"
 DATA_DIR = r"data\train_datasets"
@@ -41,10 +42,10 @@ PICKLED_DATA_DIR = "data"
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-def load_data(asset=None):
+def load_data(asset=None, version='new'):
     """Loads and preprocesses the data for the given asset."""
     data_path = select_files()[0] if asset == None else os.path.join(
-        DATA_DIR, f'{asset}_merged.csv')
+        DATA_DIR, f'{asset}_merged_{version}.csv')
     data = pd.read_csv(data_path)
     sample = Sample(data)
 
@@ -64,7 +65,7 @@ def load_model(filename):
 
 
 def error_threshold(train_scores):
-    return np.quantile(train_scores, 0.95)
+    return np.quantile(train_scores, 0.05)
 
 
 def softmax(x, train):
@@ -92,38 +93,43 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
     # Setting the title of the plot indicating the label and the key used
     plt.title(f"Errors for {label} using {key} curves")
     # Displaying the legend of the plot
-    plt.legend()
+    plt.legend(loc='lower left') if (
+        train_ind < 40).all() else plt.legend(loc='lower right')
+
     # Drawing vertical dashed lines to indicate label changes
-    plt.vlines([(labels == label).idxmax()-0.5 for label in unique_labels],
-               plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black', linestyle='--', label='label change')
+    vlines = [(labels == label).idxmax()-0.5 for label in unique_labels] + [test_ind.max()+0.5]
+    # Calculate midpoints
+    midpoints = [(vlines[i] + vlines[i + 1]) / 2 for i in range(len(vlines) - 1)]
+    y_pos = plt.gca().get_ylim()[1]  # Slightly below the top edge
 
-    # Annotating the unique labels on the plot for better readability
-    for lbl in unique_labels:
-        plt.text((labels == lbl).idxmax()+10,
-                 plt.gca().get_ylim()[1]*0.99, lbl)
+    for mid, label in zip(midpoints, unique_labels):
+        plt.text(mid, y_pos, label, ha='center', va='bottom')
+    plt.vlines(vlines[1:-1], plt.gca().get_ylim()[0], plt.gca().get_ylim()[
+               1], color='black', linestyle='--')
 
 
-def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label):
+def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label, version):
     test_errors, train_errors, model = l2_errors(
-        fd_dict, train_ind, test_ind, key, target_idx, label)
+        fd_dict, train_ind, test_ind, key, target_idx, label, version)
     # Save results in dictionary
     results_dict[key] = (test_errors, train_errors, model)
 
 
-def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
+def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label, version=None):
     # Extract training and testing data for the given 'key' from feature dictionary
     train = fd_dict[key][train_ind]
     test = fd_dict[key][test_ind]
 
     # Check if a model for the given label and key has already been saved to avoid re-fitting
-    if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
+    model_name = f"{MODEL_DIR}\{label}_{key}_fpca_{version}.pkl"
+    if not os.path.exists(model_name):
         # If the model doesn't exist, fit a new FPCA (Functional Principal Component Analysis) model on target index data
         print(f"Fitting FPCA to train {label} {key} data")
         fpca_clean = FPCA(n_components=1)
         fpca_clean.fit(fd_dict[key][target_idx])
     else:
         # If the model exists, load the FPCA model from the saved file
-        fpca_clean = load_model(f"{MODEL_DIR}\{label}_{key}_fpca.pkl")["model"]
+        fpca_clean = load_model(model_name)["model"]
 
     # Perform FPCA transformation and inverse transformation to get the reconstructed training set
     train_set_hat = fpca_clean.inverse_transform(fpca_clean.transform(train))
@@ -142,7 +148,7 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
     return test_errors, train_errors, fpca_clean
 
 
-def main(label, fd_dict, labels, unique_labels, indices):
+def main(label, fd_dict, labels, unique_labels, indices, version):
     target_idx = indices[labels == label]
     train_ind, _, _, _ = train_test_split(
         target_idx, target_idx, test_size=0.2, random_state=123)
@@ -154,22 +160,24 @@ def main(label, fd_dict, labels, unique_labels, indices):
 
     for key in ['top', 'bottom']:
         t = threading.Thread(target=l2_errors_threaded, args=(
-            results_dict, fd_dict, train_ind, test_ind, key, target_idx, label))
+            results_dict, fd_dict, train_ind, test_ind, key, target_idx, label, version))
         threads.append(t)
         t.start()
 
     for t in threads:
         t.join()
     both = {'train': [], 'test': []}
-    plt.figure(figsize=[34.4, 13.27])
+    plt.figure(figsize=[10, 5])
     # Process results in a specific order
     for n, key in enumerate(['top', 'bottom']):
         test_errors, train_errors, model = results_dict[key]
 
         # Applying the softmax function to normalize train errors
-        train_scores = softmax(train_errors, train_errors)
+        # softmax(train_errors, train_errors)
+        train_scores = np.log(1/train_errors)
         # Applying the softmax function to normalize test errors based on train errors
-        test_scores = softmax(test_errors, train_errors)
+        # softmax(test_errors, train_errors)
+        test_scores = np.log(1/test_errors)
 
         plt.subplot(2, 1, n + 1)
         plot_errors(labels, unique_labels, label, train_ind,
@@ -177,42 +185,50 @@ def main(label, fd_dict, labels, unique_labels, indices):
 
         # if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
         save_model({"model": model, "threshold": error_threshold(
-            train_errors)}, f"{MODEL_DIR}\{label}_{key}_fpca.pkl")
+            train_scores)}, f"{MODEL_DIR}\{label}_{key}_fpca_{version}.pkl")
 
         both['train'].append(train_scores)
         both['test'].append(test_scores)
-    plt.savefig(f"{FIGURES_DIR}\{label}.png")
+    plt.savefig(f"{FIGURES_DIR}\{label}_{version}.png")
 
     train_scores = np.mean(both['train'], axis=0)
     test_scores = np.mean(both['test'], axis=0)
 
-    plt.figure(figsize=[34.4, 13.27])
+    plt.figure(figsize=[10, 5])
     gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
     plt.subplot(gs[0])
 
     plot_errors(labels, unique_labels, label, train_ind, test_ind,
                 y_test, test_scores, train_scores, 'both')
+        
+    # Create a nested GridSpec for the right part
+    gs_right = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[1], hspace=0.4)
+
+    # Upper plot for confusion matrix
+    ax_cm = plt.subplot(gs_right[0])
     cm = confusion_matrix(train_scores, test_scores, y_test, label)
+    plot_confusion_matrix(cm)  # Your function to plot confusion matrix
 
-    plt.subplot(gs[1])
-    plot_confusion_matrix(cm)
+    # Lower plot for metrics
+    ax_met = plt.subplot(gs_right[1])
+    met = metrics(cm)  # Calculate metrics
+    # Display metrics using text
+    metrics_text = f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}"
+    ax_met.text(0.5, 0.5, metrics_text, horizontalalignment='center', verticalalignment='center', transform=ax_met.transAxes, fontsize=12)
+    ax_met.axis('off')  # Optionally turn off axis if not needed
+    
+    plt.tight_layout()
+    plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1_{version}.png")
 
-    met = metrics(cm)
-    plt.text(0.5, -0.25, f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}",
-             horizontalalignment='center', transform=plt.gca().transAxes, fontsize=14)
-    plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1.png")
 
-
-def confusion_matrix(train_errors, test_errors, y_test, label):
-    train_scores = softmax(train_errors, train_errors)
-    test_scores = softmax(test_errors, train_errors)
+def confusion_matrix(train_scores, test_scores, y_test, label):
 
     err_thresh = error_threshold(train_scores)
 
     act_pos = np.where(y_test != label)[0]
     act_neg = np.where(y_test == label)[0]
-    pred_pos = np.where(test_scores > err_thresh)[0]
-    pred_neg = np.where(test_scores <= err_thresh)[0]
+    pred_pos = np.where(test_scores < err_thresh)[0]
+    pred_neg = np.where(test_scores >= err_thresh)[0]
 
     TP = len(np.intersect1d(pred_pos, act_pos))
     TN = len(np.intersect1d(pred_neg, act_neg))
@@ -236,8 +252,8 @@ def metrics(confusion_matrix):
     return sensitivity, specificity, precision, F1
 
 
-def wrapper_plot_basis(label, fd_dict, labels, unique_labels, indices):
-    return main(label, fd_dict, labels, unique_labels, indices)
+def wrapper_plot_basis(label, fd_dict, labels, unique_labels, indices, version):
+    return main(label, fd_dict, labels, unique_labels, indices, version)
 
 
 def plot_confusion_matrix(cm):
@@ -247,14 +263,14 @@ def plot_confusion_matrix(cm):
 
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
-    plt.xticks([0, 1], ['Negative', 'Positive'])
-    plt.yticks([0, 1], ['Negative', 'Positive'])
+    plt.xticks([0, 1], ['Positive', 'Negative'])
+    plt.yticks([0, 1], ['Positive', 'Negative'])
 
     thresh = cm.max() / 2
 
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, cm[i, j],
-                 horizontalalignment="center", fontsize=20,
+                 horizontalalignment="center", fontsize=12,
                  color="white" if cm[i, j] > thresh else "black")
 
     plt.vlines(0.5, 1.5, 0.5, color='black')
@@ -275,13 +291,19 @@ if __name__ == '__main__':
     if not asset:
         raise ValueError("Invalid asset choice")
 
-    sample = load_data(asset)
+    version = input("Which version of the model to use?\n0. old\n1. new\n>>> ")
+    version = VERSION_CHOICES.get(version, None)
+    if not version:
+        raise ValueError("Invalid asset choice")
+
+    sample = load_data(asset, version)
+    # sample=load_data()
     labels = sample.labels
     unique_labels = labels.unique()
     indices = sample.index
     fd_dict = sample.FData()
 
     with Pool(len(unique_labels)) as p:
-        args = [(label, fd_dict, labels, unique_labels, indices)
+        args = [(label, fd_dict, labels, unique_labels, indices, version)
                 for label in unique_labels]
         p.starmap(wrapper_plot_basis, args)
