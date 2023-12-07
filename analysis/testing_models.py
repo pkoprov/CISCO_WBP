@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -30,56 +31,64 @@ def plot_errors():
     fd = sample.FData()
 
     assets = sample.iloc[:, 0].unique()
-    assets = [f"{i}: {asset}" for i, asset in enumerate(assets)]
-    assets_str = '\n'.join(assets)
-    cmd = input(f"Which asset is a target?\n{assets_str}\n>>> ")
-    asset = assets[int(cmd)].split(":")[1].strip()
-    folder_list = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
-    i=0
-    new_model_dir = None
-    old_model_dir = folder_list[0]
-    if folder == folder_list[0]:
-        print("Using old model")
-        new_model_dir = old_model_dir
-    else:
-        for i in folder_list[folder_list.index(folder)-1::-1]:
-            if os.path.exists(os.path.join("/".join(file.split('/')[:-2]), i, asset)):
-                new_model_dir = i
-                print("Using model from", new_model_dir)
-                break
 
-    total_error = {'old': [], 'new': []}
-    thresh = {'old': [], 'new': []}
-    for n, lim in enumerate(['top', 'bottom']):
-        old_model = load_model(fr'data\Kernels\{old_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
-        old_err = np.log(1/predict_error(old_model, fd[lim]))
-        new_model = load_model(fr'data\Kernels\{new_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
-        new_err = np.log(1/predict_error(new_model, fd[lim]))
-        thresh['old'].append(old_model["threshold"])
-        thresh['new'].append(new_model["threshold"])
+    for asset in assets:
+        folder_list = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
+        i=0
+        new_model_dir = None
+        old_model_dir = folder_list[0]
+        if folder == folder_list[0]:
+            print("Using old model")
+            new_model_dir = old_model_dir
+        else:
+            for i in folder_list[folder_list.index(folder)-1::-1]:
+                model_file = os.path.join("/".join(file.split('/')[:-2]), i, asset,f"{asset}_top_fpca.pkl")
+                if os.path.exists(model_file):
+                    new_model_dir = i
+                    print("Using model from", new_model_dir)
+                    break
+                else:
+                    print("Training model for", asset, i)
+                    train_model(asset, os.path.join(r".\data\Kernels", i,asset))
+                    new_model_dir = i
+                    print("Using model from", new_model_dir)
+                    break
 
-        total_error["old"].append(old_err)
-        total_error["new"].append(new_err)
-    n = 1
-    for version, err in total_error.items():
-        plt.subplot(2, 1, n)
-        plt.title(" ".join([asset, version, "model"]))
-        mean_err = np.array(err).mean(axis=0)
-        mean_thresh = np.array(thresh[version]).mean()
-        plt.plot(mean_err, "o")
-        plt.hlines(mean_thresh, 0, len(mean_err), color="red")
-        plt.hlines(1, 0, len(mean_err), color="red", linestyle="--")
-        labels = sample['asset']
 
-        unique, count = np.unique(labels, return_counts=True)
+        total_error = {'old': [], 'new': []}
+        thresh = {'old': [], 'new': []}
+        for n, lim in enumerate(['top', 'bottom']):
+            old_model = load_model(fr'data\Kernels\{old_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
+            old_err = np.log(1/predict_error(old_model, fd[lim]))
+            new_model = load_model(fr'data\Kernels\{new_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
+            new_err = np.log(1/predict_error(new_model, fd[lim]))
+            thresh['old'].append(old_model["threshold"])
+            thresh['new'].append(new_model["threshold"])
 
-        for lbl, c in zip(unique, count):
-            plt.text((labels == lbl).idxmax(),
-                     plt.gca().get_ylim()[1]*0.95, lbl)
-        plt.vlines([(labels == label).idxmax()-0.5 for label in unique],
-                   plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black', linestyle='--', label='label change')
-        n += 1
-    plt.suptitle(f"{asset} data")
+            total_error["old"].append(old_err)
+            total_error["new"].append(new_err)
+        n = 1
+        plt.figure()
+        for version, err in total_error.items():
+
+            mean_err = np.array(err).mean(axis=0)
+            mean_thresh = np.array(thresh[version]).mean()
+            plt.subplot(2, 1, n)
+            plt.title(" ".join([asset, version, "model"]))
+            plt.plot(mean_err, "o")
+            plt.hlines(mean_thresh, 0, len(mean_err), color="red")
+            plt.hlines(1, 0, len(mean_err), color="red", linestyle="--")
+            labels = sample['asset']
+
+            unique, count = np.unique(labels, return_counts=True)
+
+            for lbl, c in zip(unique, count):
+                plt.text((labels == lbl).idxmax(),
+                        plt.gca().get_ylim()[1]*0.95, lbl)
+            plt.vlines([(labels == label).idxmax()-0.5 for label in unique],
+                    plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black', linestyle='--', label='label change')
+            n += 1
+        plt.suptitle(f"{asset} data") 
         # plt.save(fr"analysis\figures\{asset}_{file[-7:-4]}_data_{version}_model.png")
 
 
