@@ -95,10 +95,11 @@ def plot_errors():
 VERSION_CHOICES = {'0': 'old', '1': 'new'}
 
 
-def test_data():
-    print("Select the file to test")
-    file = select_files(r".\data\Kernels")[0]
-    print("Selected file is ", file)
+def test_new_data(file=None):
+    if file is None:    
+        print("Select the file to test")
+        file = select_files(r".\data\Kernels")[0]
+        print("Selected file is ", file)
     dir = os.path.dirname(file)
     file = os.path.basename(file)
 
@@ -169,7 +170,7 @@ if __name__ == '__main__':
     cmd = input("Test data or plot errors?\n(t/p)\n>>> ")
     match cmd:
         case 't':
-            test_data()
+            test_new_data()
         case 'p':
             plot_errors()
     
