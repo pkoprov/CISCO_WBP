@@ -61,7 +61,7 @@ def load_model(filename):
 
 
 def error_threshold(train_scores):
-    return np.quantile(train_scores, 0.05)
+    return np.quantile(train_scores, 0.95)
 
 
 def softmax(x, train):
@@ -89,13 +89,15 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
     # Setting the title of the plot indicating the label and the key used
     plt.title(f"Errors for {label} using {key} curves")
     # Displaying the legend of the plot
-    plt.legend(loc='lower left') if (
-        train_ind < 40).all() else plt.legend(loc='lower right')
+    plt.legend(loc='upper left') if (
+        train_ind < 40).all() else plt.legend(loc='upper right')
 
     # Drawing vertical dashed lines to indicate label changes
-    vlines = [(labels == label).idxmax()-0.5 for label in unique_labels] + [test_ind.max()+0.5]
+    vlines = [(labels == label).idxmax() -
+              0.5 for label in unique_labels] + [test_ind.max()+0.5]
     # Calculate midpoints
-    midpoints = [(vlines[i] + vlines[i + 1]) / 2 for i in range(len(vlines) - 1)]
+    midpoints = [(vlines[i] + vlines[i + 1]) /
+                 2 for i in range(len(vlines) - 1)]
     y_pos = plt.gca().get_ylim()[1]  # Slightly below the top edge
 
     for mid, label in zip(midpoints, unique_labels):
@@ -214,8 +216,8 @@ def confusion_matrix(train_scores, test_scores, y_test, label):
 
     act_pos = np.where(y_test != label)[0]
     act_neg = np.where(y_test == label)[0]
-    pred_pos = np.where(test_scores < err_thresh)[0]
-    pred_neg = np.where(test_scores >= err_thresh)[0]
+    pred_pos = np.where(test_scores > err_thresh)[0]
+    pred_neg = np.where(test_scores <= err_thresh)[0]
 
     TP = len(np.intersect1d(pred_pos, act_pos))
     TN = len(np.intersect1d(pred_neg, act_neg))
