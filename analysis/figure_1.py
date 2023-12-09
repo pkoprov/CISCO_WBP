@@ -45,23 +45,26 @@ test_ind = indices.difference(train_ind)
 y_test = labels.loc[test_ind].values
 train = fd_dict[key][train_ind]
 test = fd_dict[key][test_ind]
-model_name = f"{MODEL_DIR}\{label}_{key}_fpca_old.pkl"
+model_name = fr"data\Kernels\2023_11_21\{label}\{label}_top_fpca.pkl"
 fpca_clean = load_model(model_name)["model"]
 train_set_hat = fpca_clean.inverse_transform(fpca_clean.transform(train))
 test_hat = fpca_clean.inverse_transform(fpca_clean.transform(test))
+plt.figure(figsize=(10, 7.5))
 plt.subplot(311)
-train.mean().plot(plt.gca(), label=f"original train {label} {key} mean curve")
-train_set_hat.mean().plot(plt.gca(), label=f"reconstructed train {label} {key} mean curve")
+train.mean().plot(plt.gca(), label=f"original train mean curve")
+train_set_hat.mean().plot(plt.gca(), label=f"reconstructed train mean curve")
 plt.title(f"Mean train {key} curve for {label}")
 plt.legend()
 plt.subplot(312)
-test[0].plot(plt.gca(), label=f"original {labels[test_ind[0]]} {key} curve")
-test_hat[0].plot(plt.gca(), label=f"reconstructed {labels[test_ind[0]]} {key} curve")
-plt.title(f"First test {key} curve ({labels[test_ind[0]]}) projected on {label} {key} curve FPC")
+n = -1
+test[n].plot(plt.gca(), label=f"original curve")
+test_hat[n].plot(plt.gca(), label=f"reconstructed curve")
+plt.title(f"Last test {key} curve ({labels[test_ind[n]]}) projected on {label} {key} curve FPC")
 plt.legend()
 plt.subplot(313)
-test[-1].plot(plt.gca(), label=f"original {labels[test_ind[-1]]} {key} curve")
-test_hat[-1].plot(plt.gca(), label=f"reconstructed {labels[test_ind[0]]} {key} curve")
-plt.title(f"Last test {key} curve ({labels[test_ind[-1]]}) projected on {label} {key} curve FPC")
+n = 35
+test[n].plot(plt.gca(), label=f"original curve")
+test_hat[n].plot(plt.gca(), label=f"reconstructed curve")
+plt.title(f"Last test {key} curve ({labels[test_ind[n]]}) projected on {label} {key} curve FPC")
 plt.legend()
 plt.tight_layout()
