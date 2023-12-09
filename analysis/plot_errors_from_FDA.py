@@ -5,6 +5,7 @@ from multiprocessing import Pool
 import warnings
 import itertools
 import threading
+import sys
 
 # Third-party imports
 import numpy as np
@@ -15,38 +16,33 @@ from sklearn.model_selection import train_test_split
 from skfda.preprocessing.dim_reduction import FPCA
 from skfda.misc.metrics import l2_distance, l2_norm
 
-
 # Local imports
-try:
-    from FDA import Sample
-    from read_merge_align_write import select_files
-except ModuleNotFoundError:
-    from analysis.FDA import Sample
-    from analysis.read_merge_align_write import select_files
-    asset = "1"
-    label = "VF-2_1"
-    key = 'top'
-    plt.ion()
+sys.path.append(os.getcwd())
+from analysis.read_merge_align_write import select_files
+from analysis.FDA import Sample
+
+
+# asset = "1"
+# label = "VF-2_1"
+# key = 'top'
+# plt.ion()
 
 
 # Constants
-ASSET_CHOICES = {'1': 'VF', '2': 'UR', '3': 'Prusa', '4': 'Bambu'}
-VERSION_CHOICES = {'0': 'old', '1': 'new'}
-MODEL_DIR = "analysis/models"
+ASSET_CHOICES = {'1': 'VF-2', '2': 'UR', '3': 'Prusa', '4': 'Bambu'}
 FIGURES_DIR = "analysis/figures"
-DATA_DIR = r"data\train_datasets"
-PICKLED_DATA_DIR = "data"
+DATA_FILES = {"VF-2": r"data\Kernels\2023_11_18\VF-2_merged.csv", "UR": r"data\Kernels\2023_11_21\UR_merged.csv",
+              "Prusa": r"data\Kernels\PRUSA", "Bambu": r"data\Kernels\2023_11_25\Bambu_merged.csv"}
 
 
 # Suppress specific warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-def load_data(asset=None, version='new'):
+def load_data(asset=None):
     """Loads and preprocesses the data for the given asset."""
-    data_path = select_files()[0] if asset == None else os.path.join(
-        DATA_DIR, f'{asset}_merged_{version}.csv')
-    data = pd.read_csv(data_path)
+
+    data = pd.read_csv(DATA_FILES[asset])
     sample = Sample(data)
 
     return sample
@@ -108,20 +104,20 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
                1], color='black', linestyle='--')
 
 
-def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label, version):
-    test_errors, train_errors, model = l2_errors(
-        fd_dict, train_ind, test_ind, key, target_idx, label, version)
+def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label):
+    test_errors, train_errors = l2_errors(
+        fd_dict, train_ind, test_ind, key, target_idx, label)
     # Save results in dictionary
-    results_dict[key] = (test_errors, train_errors, model)
+    results_dict[key] = (test_errors, train_errors)
 
 
-def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label, version=None):
+def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
     # Extract training and testing data for the given 'key' from feature dictionary
     train = fd_dict[key][train_ind]
     test = fd_dict[key][test_ind]
-
+    typ = label[:-2] if "UR" not in label else "UR"
     # Check if a model for the given label and key has already been saved to avoid re-fitting
-    model_name = f"{MODEL_DIR}\{label}_{key}_fpca_{version}.pkl"
+    model_name = os.path.join(os.path.dirname(DATA_FILES[typ]),label,f"{label}_{key}_fpca.pkl")
     if not os.path.exists(model_name):
         # If the model doesn't exist, fit a new FPCA (Functional Principal Component Analysis) model on target index data
         print(f"Fitting FPCA to train {label} {key} data")
@@ -145,10 +141,10 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label, version=None
     test_errors = l2_distance(test_set_hat, test) / l2_norm(test)
 
     # Return the normalized test errors, train errors, and the fitted or loaded FPCA model
-    return test_errors, train_errors, fpca_clean
+    return test_errors, train_errors
 
 
-def main(label, fd_dict, labels, unique_labels, indices, version):
+def main(label, fd_dict, labels, unique_labels, indices):
     target_idx = indices[labels == label]
     train_ind, _, _, _ = train_test_split(
         target_idx, target_idx, test_size=0.2, random_state=123)
@@ -160,7 +156,7 @@ def main(label, fd_dict, labels, unique_labels, indices, version):
 
     for key in ['top', 'bottom']:
         t = threading.Thread(target=l2_errors_threaded, args=(
-            results_dict, fd_dict, train_ind, test_ind, key, target_idx, label, version))
+            results_dict, fd_dict, train_ind, test_ind, key, target_idx, label))
         threads.append(t)
         t.start()
 
@@ -170,26 +166,15 @@ def main(label, fd_dict, labels, unique_labels, indices, version):
     plt.figure(figsize=[10, 5])
     # Process results in a specific order
     for n, key in enumerate(['top', 'bottom']):
-        test_errors, train_errors, model = results_dict[key]
-
-        # Applying the softmax function to normalize train errors
-        # softmax(train_errors, train_errors)
-        train_scores = np.log(1/train_errors)
-        # Applying the softmax function to normalize test errors based on train errors
-        # softmax(test_errors, train_errors)
-        test_scores = np.log(1/test_errors)
+        test_scores, train_scores = results_dict[key]
 
         plt.subplot(2, 1, n + 1)
         plot_errors(labels, unique_labels, label, train_ind,
                     test_ind, y_test, test_scores, train_scores, key)
 
-        # if not os.path.exists(f"{MODEL_DIR}\{label}_{key}_fpca.pkl"):
-        save_model({"model": model, "threshold": error_threshold(
-            train_scores)}, f"{MODEL_DIR}\{label}_{key}_fpca_{version}.pkl")
-
         both['train'].append(train_scores)
         both['test'].append(test_scores)
-    plt.savefig(f"{FIGURES_DIR}\{label}_{version}.png")
+    plt.savefig(f"{FIGURES_DIR}\{label}.png")
 
     train_scores = np.mean(both['train'], axis=0)
     test_scores = np.mean(both['test'], axis=0)
@@ -200,9 +185,10 @@ def main(label, fd_dict, labels, unique_labels, indices, version):
 
     plot_errors(labels, unique_labels, label, train_ind, test_ind,
                 y_test, test_scores, train_scores, 'both')
-        
+
     # Create a nested GridSpec for the right part
-    gs_right = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[1], hspace=0.4)
+    gs_right = gridspec.GridSpecFromSubplotSpec(
+        2, 1, subplot_spec=gs[1], hspace=0.4)
 
     # Upper plot for confusion matrix
     ax_cm = plt.subplot(gs_right[0])
@@ -214,11 +200,12 @@ def main(label, fd_dict, labels, unique_labels, indices, version):
     met = metrics(cm)  # Calculate metrics
     # Display metrics using text
     metrics_text = f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}"
-    ax_met.text(0.5, 0.5, metrics_text, horizontalalignment='center', verticalalignment='center', transform=ax_met.transAxes, fontsize=12)
+    ax_met.text(0.5, 0.5, metrics_text, horizontalalignment='center',
+                verticalalignment='center', transform=ax_met.transAxes, fontsize=12)
     ax_met.axis('off')  # Optionally turn off axis if not needed
-    
+
     plt.tight_layout()
-    plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1_{version}.png")
+    plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1.png")
 
 
 def confusion_matrix(train_scores, test_scores, y_test, label):
@@ -252,8 +239,8 @@ def metrics(confusion_matrix):
     return sensitivity, specificity, precision, F1
 
 
-def wrapper_plot_basis(label, fd_dict, labels, unique_labels, indices, version):
-    return main(label, fd_dict, labels, unique_labels, indices, version)
+def wrapper_plot_basis(label, fd_dict, labels, unique_labels, indices):
+    return main(label, fd_dict, labels, unique_labels, indices)
 
 
 def plot_confusion_matrix(cm):
@@ -281,7 +268,7 @@ if __name__ == '__main__':
     asset = input("""
     Which asset do you want to plot?
     Options:
-    1. VF
+    1. VF-2
     2. UR
     3. Prusa
     4. Bambu
@@ -291,19 +278,13 @@ if __name__ == '__main__':
     if not asset:
         raise ValueError("Invalid asset choice")
 
-    version = input("Which version of the model to use?\n0. old\n1. new\n>>> ")
-    version = VERSION_CHOICES.get(version, None)
-    if not version:
-        raise ValueError("Invalid asset choice")
-
-    sample = load_data(asset, version)
-    # sample=load_data()
+    sample = load_data(asset)
     labels = sample.labels
     unique_labels = labels.unique()
     indices = sample.index
     fd_dict = sample.FData()
 
     with Pool(len(unique_labels)) as p:
-        args = [(label, fd_dict, labels, unique_labels, indices, version)
+        args = [(label, fd_dict, labels, unique_labels, indices)
                 for label in unique_labels]
         p.starmap(wrapper_plot_basis, args)
