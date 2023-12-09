@@ -1,17 +1,15 @@
 import os
-import re
 import sys
+sys.path.append(os.getcwd())
+from data.merge_X_all import folders_to_process
+from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
+from analysis.read_merge_align_write import select_files
+from analysis.FDA import Sample
 import pandas as pd
 import matplotlib.pyplot as plt
 from skfda.misc.metrics import l2_distance, l2_norm
 from skfda.preprocessing.dim_reduction import FPCA
 import numpy as np
-
-sys.path.append(os.getcwd())
-from analysis.FDA import Sample
-from analysis.read_merge_align_write import select_files
-from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
-from data.merge_X_all import folders_to_process
 
 
 plt.ion()
@@ -30,73 +28,85 @@ def plot_errors():
     sample = Sample(df)
     fd = sample.FData()
 
-    assets = sample.iloc[:, 0].unique()
+    assets = sample['asset'].unique()
+    asset_indices = {asset: np.where(sample['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
 
+    models = {}
+    results = {asset:{'old':[], 'new':[]} for asset in assets}
     for asset in assets:
-        folder_list = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
-        i=0
-        new_model_dir = None
-        old_model_dir = folder_list[0]
-        if folder == folder_list[0]:
-            print("Using old model")
-            new_model_dir = old_model_dir
-        else:
-            for i in folder_list[folder_list.index(folder)-1::-1]:
-                model_file = os.path.join("/".join(file.split('/')[:-2]), i, asset,f"{asset}_top_fpca.pkl")
-                if os.path.exists(model_file):
-                    new_model_dir = i
-                    print("Using model from", new_model_dir)
-                    break
-                else:
-                    print("Training model for", asset, i)
-                    train_model(asset, os.path.join(r".\data\Kernels", i,asset))
-                    new_model_dir = i
-                    print("Using model from", new_model_dir)
-                    break
-
-
-        total_error = {'old': [], 'new': []}
-        thresh = {'old': [], 'new': []}
-        for n, lim in enumerate(['top', 'bottom']):
-            old_model = load_model(fr'data\Kernels\{old_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
-            old_err = np.log(1/predict_error(old_model, fd[lim]))
-            new_model = load_model(fr'data\Kernels\{new_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
-            new_err = np.log(1/predict_error(new_model, fd[lim]))
-            thresh['old'].append(old_model["threshold"])
-            thresh['new'].append(new_model["threshold"])
-
-            total_error["old"].append(old_err)
-            total_error["new"].append(new_err)
+        total_error, thresh = apply_models(file, folder, fd, models, asset)
         n = 1
         plt.figure()
         for version, err in total_error.items():
 
             mean_err = np.array(err).mean(axis=0)
-            mean_thresh = np.array(thresh[version]).mean()
+            min_thresh = min(thresh[version])
+            results[asset][version] = min_thresh - mean_err[asset_indices[asset]]
+            
             plt.subplot(2, 1, n)
             plt.title(" ".join([asset, version, "model"]))
             plt.plot(mean_err, "o")
-            plt.hlines(mean_thresh, 0, len(mean_err), color="red")
-            plt.hlines(1, 0, len(mean_err), color="red", linestyle="--")
+            plt.hlines(min_thresh, 0, len(mean_err), color="red")
+            # plt.hlines(1, 0, len(mean_err), color="red", linestyle="--")
             labels = sample['asset']
 
             unique, count = np.unique(labels, return_counts=True)
 
             for lbl, c in zip(unique, count):
                 plt.text((labels == lbl).idxmax(),
-                        plt.gca().get_ylim()[1]*0.95, lbl)
+                         plt.gca().get_ylim()[1]*0.95, lbl)
             plt.vlines([(labels == label).idxmax()-0.5 for label in unique],
-                    plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black', linestyle='--', label='label change')
+                       plt.gca().get_ylim()[0], plt.gca().get_ylim()[1], color='black', linestyle='--', label='label change')
             n += 1
-        plt.suptitle(f"{asset} data") 
-        # plt.save(fr"analysis\figures\{asset}_{file[-7:-4]}_data_{version}_model.png")
+        plt.suptitle(f"{asset} data")
+    return results
 
 
-VERSION_CHOICES = {'0': 'old', '1': 'new'}
+def apply_models(file, folder, fd, models, asset):
+    folder_list = folders_to_process(
+        asset[:-2]) if "UR" not in asset else folders_to_process("UR")
+    new_model_dir = None
+    old_model_dir = folder_list[0]
+    if folder == folder_list[0]:
+        print("Using old model")
+        new_model_dir = old_model_dir
+    else:
+        for i, folder_name in enumerate(folder_list[folder_list.index(folder)-1::-1]):
+            model_file = os.path.join(
+                "/".join(file.split('/')[:-2]), folder_name, asset, f"{asset}_top_fpca.pkl")
+            if os.path.exists(model_file):
+                new_model_dir = folder_name
+                break
+            else:
+                print("Training model for", asset, folder_name)
+                train_model(os.path.join(r".\data\Kernels", folder_name, asset,f"/{asset}_merged_new.csv"))
+                new_model_dir = folder_name
+                break
+        print("Using model from", asset, new_model_dir)
+    models[asset] = {
+        "top": load_model(fr'data\Kernels\{new_model_dir}\{asset}\{asset}_top_fpca.pkl'),
+        "bottom": load_model(fr'data\Kernels\{new_model_dir}\{asset}\{asset}_bottom_fpca.pkl')
+    }
+
+    total_error = {'old': [], 'new': []}
+    thresh = {'old': [], 'new': []}
+    for n, lim in enumerate(['top', 'bottom']):
+        old_model = load_model(
+            fr'data\Kernels\{old_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
+        old_err = predict_error(old_model, fd[lim])
+        new_model = load_model(
+            fr'data\Kernels\{new_model_dir}\{asset}\{asset}_{lim}_fpca.pkl')
+        new_err = predict_error(new_model, fd[lim])
+        thresh['old'].append(old_model["threshold"])
+        thresh['new'].append(new_model["threshold"])
+
+        total_error["old"].append(old_err)
+        total_error["new"].append(new_err)
+    return total_error, thresh
 
 
 def test_new_data(file=None):
-    if file is None:    
+    if file is None:
         print("Select the file to test")
         file = select_files(r".\data\Kernels")[0]
         print("Selected file is ", file)
@@ -109,39 +119,37 @@ def test_new_data(file=None):
     asset = dir.split("/")[-1]
     dir_list = os.listdir(r".\data\Kernels")
 
-    i=0
+    i = 0
     train_fold = None
     while train_fold is None or not os.path.exists(train_fold):
-        i+=1
+        i += 1
         train_fold_idx = dir_list.index(dir.split('/')[-2])-i
         train_fold = os.path.join(
             "/".join(dir.split('/')[:-2]), os.listdir(r".\data\Kernels")[train_fold_idx], asset)
-    
+
     print(f"Using {train_fold} for training")
-          
+
     model_top = load_model(fr'{train_fold}/{asset}_top_fpca.pkl') if os.path.exists(
-        fr'{train_fold}/{asset}_top_fpca.pkl') else train_model(asset, train_fold)["top"]
+        fr'{train_fold}/{asset}_top_fpca.pkl') else train_model(train_fold+f"/{asset}_merged_new.csv")["top"]
     model_bottom = load_model(fr'{train_fold}/{asset}_bottom_fpca.pkl') if os.path.exists(
-        fr'{train_fold}/{asset}_bottom_fpca.pkl') else train_model(asset, train_fold)["bottom"]
+        fr'{train_fold}/{asset}_bottom_fpca.pkl') else train_model(train_fold+f"/{asset}_merged_new.csv")["bottom"]
 
-
-    top_err = np.log(1/predict_error(model_top, fd['top']))
-    bottom_err = np.log(1/predict_error(model_bottom, fd['bottom']))
-    total_err = np.mean((top_err, bottom_err), axis=0)
-    total_thresh = np.mean((model_top["threshold"], model_bottom["threshold"]))
+    top_err = predict_error(model_top, fd['top'])
+    bottom_err = predict_error(model_bottom, fd['bottom'])
+    total_err = np.min((top_err, bottom_err), axis=0)
+    total_thresh = np.min((model_top["threshold"], model_bottom["threshold"]))
     plt.plot(total_err, "o")
     plt.hlines(total_thresh, 0, len(total_err), color="red")
-    plt.hlines(1, 0, len(total_err), color="red", linestyle="--")
     TP = np.sum(total_err > total_thresh)
     FP = np.sum(total_err < total_thresh)
     print("TP:", TP)
     print("FP:", FP)
 
 
-def train_model(asset, train_fold):
-    
+def train_model(path=None):
+
     try:
-        train_df = pd.read_csv(train_fold+f"/{asset}_merged_new.csv")
+        train_df = pd.read_csv(path)
     except FileNotFoundError:
         print("Select dataset to train on")
         train_file = select_files(r".\data\Kernels")[0]
@@ -157,12 +165,12 @@ def train_model(asset, train_fold):
         train_set_hat = model.inverse_transform(model.transform(train_fd[key]))
         error = l2_distance(
             train_set_hat, train_fd[key]) / l2_norm(train_fd[key])
-        thresh = error_threshold(np.log(1/error))
-        save_as = f"{train_fold}\{asset}_{key}_fpca.pkl"
+        thresh = error_threshold(error)
+        save_as = f"{os.path.dirname(path)}\{os.path.basename(os.path.dirname(path))}_{key}_fpca.pkl"
         model_dict[key] = {"model": model, "threshold": thresh}
         save_model(model_dict[key], save_as)
         print(f"Saved model to {save_as}")
-        
+
     return model_dict
 
 
@@ -173,6 +181,6 @@ if __name__ == '__main__':
             test_new_data()
         case 'p':
             plot_errors()
-    
+
     plt.show()
     plt.waitforbuttonpress()
