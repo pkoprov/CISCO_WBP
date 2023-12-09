@@ -64,6 +64,9 @@ def save_file(file=None,folder = r".\data\Kernels"):
 def create_dataset(folder=None):
     # read data from each sample and merge into one dataframe
     df_all, asset, axis, root = united_frame(folder)
+    if df_all is None:
+        print(f"Skipping {folder}")
+        return
     print(root)
 
     df_all = df_all.transpose()
@@ -82,9 +85,12 @@ def create_dataset(folder=None):
 
 
 def united_frame(folder):
-    print("Select folder with data")
+    
     if folder is None:
+        print("Select folder with data")
         root = get_folder_path(folder)
+        if root == '':
+            return None, None, None, None
     else:
         root = folder
     if not root:
@@ -100,6 +106,8 @@ def united_frame(folder):
         for i, subfolder in enumerate(subfolders):
             print(f"{i}: {subfolder}")
         asset = input("Select asset:\n>>> ")
+        if asset == '':
+            return None, None, None, None
         asset = subfolders[int(asset)]
 
     columns = ["Time", "X", "Y", "Z"]
@@ -181,7 +189,15 @@ def merge(files=None, folder=None):
         files = np.unique(files)
     print(files)
 
-    asset_type = files[0].split('\\')[-2][:-2] if "UR" not in files[0] else "UR"
+    if "VF" in files[0]:
+        asset_type = "VF-2"
+    elif "Bambu" in files[0]:
+        asset_type = "Bambu"
+    elif "UR" in files[0]:
+        asset_type = "UR"
+    else:
+        print("Unknown type")
+        asset_type = input("Type the asset type:\n>>")
     df_total = pd.DataFrame()
     for file in files:
         df = pd.read_csv(file, index_col=0)
