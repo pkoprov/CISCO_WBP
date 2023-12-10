@@ -2,14 +2,12 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 sys.path.append(os.getcwd())
 
 
 from analysis.plot_errors_from_FDA import load_model
 from data.merge_X_all import START, folders_to_process
-from analysis.testing_models import predict_error, apply_model, find_updated_model
-from analysis.FDA import Sample
+from analysis.testing_models import  apply_model, find_updated_model
 
 
 def process_data(asset, version):
