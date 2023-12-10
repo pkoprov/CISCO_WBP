@@ -104,40 +104,52 @@ def apply_models(file, folder, fd, models, asset):
         total_error["new"].append(new_err)
     return total_error, thresh
 
+def find_updated_model(file):
+    asset = os.path.dirname(file).split("\\")[-1]
+    model_dir = None
+    folders = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
+    fin_idx = folders.index(file.split("\\")[-3])
+    for folder in folders[:fin_idx][::-1]:
+        model_dir = os.path.join(r'.\data\Kernels', folder, asset)
+        if os.path.exists(model_dir):
+            return model_dir
+    if model_dir is None:
+        print("No training data found")
+        return
+
+def apply_model(file, model_dir=None):
+    df = pd.read_csv(file)
+    sample = Sample(df)
+    fd = sample.FData()
+
+    if not model_dir:
+        model_dir = find_updated_model(file)
+    # get indices of labels
+    assets = sample['asset'].unique()
+    asset_indices = {asset: np.where(sample['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
+    result = {asset:{'errors':[], 'threshold':[]} for asset in assets}
+    for model_name in [m for m in os.listdir(model_dir) if "fpca.pkl" in m]:
+        model_path = os.path.join(model_dir, model_name)
+        print("Using model", model_path)
+        model = load_model(model_path)
+        error = predict_error(model, fd[model_path.split("_")[-2]])
+        for i in asset_indices:
+            result[i]['errors'].append(error[asset_indices[i]])
+            result[i]['threshold'].append(model["threshold"])
+            
+    return result
 
 def test_new_data(file=None):
     if file is None:
         print("Select the file to test")
         file = select_files(r".\data\Kernels")[0]
         print("Selected file is ", file)
-    dir = os.path.dirname(file)
-    file = os.path.basename(file)
+    
+    result = apply_model(file)
+    asset = list(result.keys())[0]
 
-    df = pd.read_csv(os.path.join(dir, file))
-    sample = Sample(df)
-    fd = sample.FData()
-    asset = dir.split("/")[-1]
-    dir_list = os.listdir(r".\data\Kernels")
-
-    i = 0
-    train_fold = None
-    while train_fold is None or not os.path.exists(train_fold):
-        i += 1
-        train_fold_idx = dir_list.index(dir.split('/')[-2])-i
-        train_fold = os.path.join(
-            "/".join(dir.split('/')[:-2]), os.listdir(r".\data\Kernels")[train_fold_idx], asset)
-
-    print(f"Using {train_fold} for training")
-
-    model_top = load_model(fr'{train_fold}/{asset}_top_fpca.pkl') if os.path.exists(
-        fr'{train_fold}/{asset}_top_fpca.pkl') else train_model(train_fold+f"/{asset}_merged_new.csv")["top"]
-    model_bottom = load_model(fr'{train_fold}/{asset}_bottom_fpca.pkl') if os.path.exists(
-        fr'{train_fold}/{asset}_bottom_fpca.pkl') else train_model(train_fold+f"/{asset}_merged_new.csv")["bottom"]
-
-    top_err = predict_error(model_top, fd['top'])
-    bottom_err = predict_error(model_bottom, fd['bottom'])
-    total_err = np.min((top_err, bottom_err), axis=0)
-    total_thresh = np.min((model_top["threshold"], model_bottom["threshold"]))
+    total_err = np.mean((result[asset]['errors']), axis=0)
+    total_thresh = np.mean((result[asset]['threshold']), axis=0)
     plt.plot(total_err, "o")
     plt.hlines(total_thresh, 0, len(total_err), color="red")
     TP = np.sum(total_err > total_thresh)
