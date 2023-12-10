@@ -41,8 +41,7 @@ def update(old=None, new=None):
     df.to_csv(filename, index=False)
     print("saved to ", filename)
 
-
-if __name__ == "__main__":
+def main(force=False):
     folder_list = folders_to_process("VF-2")
     for folder in folder_list:
         assets = [i for i in os.listdir(
@@ -57,7 +56,7 @@ if __name__ == "__main__":
             else:
                 print("Unknown type")
                 typ = input("Type the asset type:\n>>")
-            if os.path.exists(f"data\Kernels\{folder}\{asset}\{asset}_merged_new.csv"):
+            if os.path.exists(f"data\Kernels\{folder}\{asset}\{asset}_merged_new.csv") and not force:
                 print(f"File {asset}_merged_new.csv already exists")
                 continue
             elif folder == START[typ]:
@@ -76,3 +75,7 @@ if __name__ == "__main__":
                 print("Select the file to add")
                 new = select_files()[0]
                 update(old=old, new=new)
+
+
+if __name__ == "__main__":
+    main()
