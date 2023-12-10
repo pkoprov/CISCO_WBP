@@ -61,7 +61,7 @@ def plot_errors():
         plt.suptitle(f"{asset} data")
     return results
 
-
+#  TODO: check this function
 def apply_models(file, folder, fd, models, asset):
     folder_list = folders_to_process(
         asset[:-2]) if "UR" not in asset else folders_to_process("UR")
