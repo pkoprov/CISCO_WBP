@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -9,123 +8,95 @@ sys.path.append(os.getcwd())
 
 from analysis.plot_errors_from_FDA import load_model
 from data.merge_X_all import START, folders_to_process
-from analysis.testing_models import predict_error
-from analysis.plot_errors_from_FDA import ASSET_CHOICES
-from analysis.read_merge_align_write import select_files
+from analysis.testing_models import predict_error, apply_model, find_updated_model
 from analysis.FDA import Sample
 
 
-def old_model_test(typ=None, file=None, asset=None):
-    if not typ:
-        typ = input("""
-        Which asset do you want to plot?
-        Options:
-        1. VF-2
-        2. UR
-        3. Prusa
-        4. Bambu
-        > """)
-
-        typ = ASSET_CHOICES.get(typ.upper(), None)
-        if not typ:
-            raise ValueError("Invalid asset choice")
-    
-    if not file:
-        print("Select file to test")
-        file = select_files(r".\data\Kernels")[0]
-    
-    sample = Sample(pd.read_csv(file))
-    fd  = sample.FData()
-    
-    # get indices of labels
-    assets = sample['asset'].unique()
-    asset_indices = {asset: np.where(sample['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
-    result = {asset:[] for asset in assets}
-
-    if "VF" in typ:
-        dir = START["VF-2"]
-    elif "UR" in typ:
-        dir = START["UR"]
-    elif "Bambu" in typ:
-        dir = START["Bambu"]
-    
-    if not asset:
-        print("Which asset do you want to test?")
-        for i, asset in enumerate(assets):
-            print(i+1, asset)
-        asset = assets[int(input("> "))-1]
-
-    model_dir = os.path.join("data","Kernels", dir, asset)
-    
-    for model_path in [m for m in os.listdir(model_dir) if "fpca.pkl" in m]:
-        model_path = os.path.join(model_dir, model_path)
-        print("Using model", model_path)
-        model = load_model(model_path)
-        error = predict_error(model, fd[model_path.split("_")[-2]])
-        for i in asset_indices:
-            result[i] = error[asset_indices[i]]
-
-    return result
-
-def process_data(asset):
+def process_data(asset, version):
     typ = asset[:-2] if "UR" not in asset else "UR"
     dir_list = folders_to_process(typ)
 
     results = {}
 
-    for folder in dir_list[1:-1]:
+    for folder in dir_list[1:]:
         
         file = os.path.join(r".\data\Kernels", folder,asset, f"merged_X.csv")
-        try:
-            errors = old_model_test(typ, asset = asset, file=file)
+        if version == "old":
+            if "VF" in typ:
+                model_dir = START["VF-2"]
+            elif "UR" in typ:
+                model_dir = START["UR"]
+            elif "Bambu" in typ:
+                model_dir = START["Bambu"]
+            model_dir = os.path.join(r".\data\Kernels", model_dir, asset)
+        else:
+            model_dir = find_updated_model(file)
+            file = os.path.join(r".\data\Kernels", folder, f"{typ}_merged.csv")
+
+        try:          
+            prediction = apply_model(file, model_dir)
+            
         except FileNotFoundError:
             print("File not found", file)
             continue
 
-        for asset_er in errors:
-            if asset_er not in results:
-                results[asset_er] = []
-            results[asset_er].append(errors[asset_er])
+        for key in prediction.keys():
+            if key not in results:
+                results[key] = {'errors':[], 'threshold':[]}
+            results[key]['errors'].append(np.mean(prediction[key]['errors'], axis=0))
+            results[key]['threshold'].append(np.mean(prediction[key]["threshold"], axis = 0))
 
-    for asset_er in results:
-        results[asset_er] = np.concatenate(results[asset_er])
+    for key in results.keys():
+        results[key]['errors'] = np.concatenate(results[key]['errors'])
     
     return results
 
 
-def plot_results(asset, n):
-    results = process_data(asset)
+def plot_results(asset, n, version):
+    results = process_data(asset, version)
     typ = asset[:-2] if "UR" not in asset else "UR"
+    col = ['blue', 'red'] if "UR" not in asset else ['blue', 'red', 'green']
     dir_list = folders_to_process(typ)
     plt.subplot(len(ASSETS[typ]),1, n+1)
-    days = np.arange(1.33,len(results[asset])/3+1.33, 1/3)
-    for asset_er in results:
-        plt.plot(days,results[asset_er], "o", label=asset_er)
-        slope, intercept = np.polyfit(days, results[asset_er], 1)
-        trend_line = slope * days + intercept
-        plt.plot(days, trend_line, label='Trend Line for'+asset_er)
 
-    threshold = np.mean([load_model(os.path.join(r".\data\Kernels", dir_list[0], asset, f"{asset}_{lim}_fpca.pkl"))["threshold"] for lim in ["top", "bottom"]])
-    plt.axhline(threshold, color="black", linestyle = "--", label="old threshold")
+    for key, col in zip(results.keys(),col):   
+        days = np.arange(1.33,len(results[key]['errors'])/3+1.33, 1/3)
+        plt.plot(days,results[key]['errors'], ".", label=key, color=col)
 
-    plt.legend(loc = "upper left")
-    plt.title(f"Error for {asset} old model on new data")
+    days = np.arange(1.33,len(results[asset]['errors'])/3+1.33, 1/3)
+    slope, intercept = np.polyfit(days, results[asset]["errors"], 1)
+    trend_line = slope * days + intercept
+    plt.plot(days, trend_line, label='Trend Line for '+asset)
+
+    if version == "old":
+        threshold = np.mean([load_model(os.path.join(r".\data\Kernels", dir_list[0], asset, f"{asset}_{lim}_fpca.pkl"))["threshold"] for lim in ["top", "bottom"]])
+        plt.axhline(threshold, color="black", linestyle = "--", label="old threshold")
+        plt.title(f"Error for {asset} old model on new data")
+
+    else:
+        threshold = np.array(results[asset]['threshold'])
+        thresh_per_day = np.repeat(threshold, 3)
+        plt.plot(days, thresh_per_day, label="Updated threshold", color = "black", linestyle = "--")
+        plt.title(f"Error for {asset} updated models on new data")
+    
     plt.xlabel("Days")
     plt.ylabel("L2 error")
+    plt.xticks(days[1::3],np.arange(1, results[asset]['errors'].shape[0]/3+1).astype(int))
+    plt.legend(loc = "upper right")
 
-    plt.xticks(days[1::3],np.arange(1, results[asset].shape[0]/3+1).astype(int))
+def model_performance(version):
+    cmd = input("Which asset do you want to plot?\n1. VF-2\n2. UR\n3. Bambu\n>> ")
+    typ = list(ASSETS.keys())[int(cmd)-1]
 
+    plt.figure(figsize = [10,2.5*len(ASSETS[typ])])
+    for n, asset in enumerate(ASSETS[typ]):
+        plot_results(asset, n, version)
 
+    plt.tight_layout()
+    plt.waitforbuttonpress()
 
 ASSETS = {"VF-2":["VF-2_1", "VF-2_2"], "UR": ["UR10e_A", "UR5e_N","UR5e_W"], "Bambu":["Bambu_M", "Bambu_S"]}
 
-typ = "Bambu"
-plt.figure(figsize = [10,2.5*len(ASSETS[typ])])
-
-for n, asset in enumerate(ASSETS[typ]):
-    plot_results(asset, n)
-
-plt.tight_layout()
-plt.waitforbuttonpress()
-plt.subplot(212)
-plt.legend(loc = "upper right")
+if __name__ == "__main__":
+    prog = input("Model to run:\n1. old\n2. updated\n>> ")
+    model_performance("old" if prog == "1" else "updated")
