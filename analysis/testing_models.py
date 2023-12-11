@@ -104,7 +104,7 @@ def apply_models(file, folder, fd, models, asset):
         total_error["new"].append(new_err)
     return total_error, thresh
 
-def find_updated_model(file):
+def find_updated_model_dir(file):
     asset = os.path.dirname(file).split("\\")[-1]
     model_dir = None
     folders = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
@@ -117,25 +117,31 @@ def find_updated_model(file):
         print("No training data found")
         return
 
-def apply_model(file, model_dir=None):
+def apply_model(file, model_dir=None, model="fpca"):
     df = pd.read_csv(file)
-    sample = Sample(df)
-    fd = sample.FData()
+    # get indices of labels
+    assets = df['asset'].unique()
+    asset_indices = {asset: np.where(df['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
+    if model.lower() == "fpca":
+        sample = Sample(df)
+        fd = sample.FData()
+    else:
+        sample = df
+        sample.drop(["asset"], axis=1, inplace=True)
+        sample.columns = sample.columns.astype(float)
 
     if not model_dir:
-        model_dir = find_updated_model(file)
-    # get indices of labels
-    assets = sample['asset'].unique()
-    asset_indices = {asset: np.where(sample['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
-    result = {asset:{'errors':[], 'threshold':[]} for asset in assets}
-    for model_name in [m for m in os.listdir(model_dir) if "fpca.pkl" in m]:
+        model_dir = find_updated_model_dir(file)
+    
+    result = {asset:{'scores':[], 'threshold':[]} for asset in assets}
+    for model_name in [m for m in os.listdir(model_dir) if f"{model}.pkl" in m]:
         model_path = os.path.join(model_dir, model_name)
         print("Using model", model_path)
-        model = load_model(model_path)
-        error = predict_error(model, fd[model_path.split("_")[-2]])
+        saved_model = load_model(model_path)
+        scores = predict_error(saved_model, fd[model_path.split("_")[-2]]) if model == "fpca" else 1/saved_model['model'].score_samples(sample) 
         for i in asset_indices:
-            result[i]['errors'].append(error[asset_indices[i]])
-            result[i]['threshold'].append(model["threshold"])
+            result[i]['scores'].append(scores[asset_indices[i]])
+            result[i]['threshold'].append(saved_model["threshold"])
             
     return result
 
