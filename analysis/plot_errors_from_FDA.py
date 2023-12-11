@@ -89,8 +89,7 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
     # Setting the title of the plot indicating the label and the key used
     plt.title(f"Errors for {label} using {key} curves")
     # Displaying the legend of the plot
-    plt.legend(loc='upper left') if (
-        train_ind < 40).all() else plt.legend(loc='upper right')
+    plt.legend(loc='best')
 
     # Drawing vertical dashed lines to indicate label changes
     vlines = [(labels == label).idxmax() -
@@ -193,7 +192,7 @@ def main(label, fd_dict, labels, unique_labels, indices):
         2, 1, subplot_spec=gs[1], hspace=0.4)
 
     # Upper plot for confusion matrix
-    ax_cm = plt.subplot(gs_right[0])
+    plt.subplot(gs_right[0])
     cm = confusion_matrix(train_scores, test_scores, y_test, label)
     plot_confusion_matrix(cm)  # Your function to plot confusion matrix
 
@@ -210,9 +209,9 @@ def main(label, fd_dict, labels, unique_labels, indices):
     plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1.png")
 
 
-def confusion_matrix(train_scores, test_scores, y_test, label):
+def confusion_matrix(train_scores, test_scores, y_test, label, err_thresh=None):
 
-    err_thresh = error_threshold(train_scores)
+    err_thresh = error_threshold(train_scores) if err_thresh is None else err_thresh
 
     act_pos = np.where(y_test != label)[0]
     act_neg = np.where(y_test == label)[0]
