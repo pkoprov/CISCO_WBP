@@ -18,7 +18,6 @@ from skfda.misc.metrics import l2_distance, l2_norm
 
 # Local imports
 sys.path.append(os.getcwd())
-from analysis.read_merge_align_write import select_files
 from analysis.FDA import Sample
 
 
@@ -32,7 +31,7 @@ from analysis.FDA import Sample
 ASSET_CHOICES = {'1': 'VF-2', '2': 'UR', '3': 'Prusa', '4': 'Bambu'}
 FIGURES_DIR = "analysis/figures"
 DATA_FILES = {"VF-2": r"data\Kernels\2023_11_18\VF-2_merged.csv", "UR": r"data\Kernels\2023_11_21\UR_merged.csv",
-              "Prusa": r"data\Kernels\PRUSA", "Bambu": r"data\Kernels\2023_11_25\Bambu_merged.csv"}
+              "Prusa": r"data\Kernels\PRUSA\Prusa_merged.csv", "Bambu": r"data\Kernels\2023_11_25\Bambu_merged.csv"}
 
 
 # Suppress specific warnings
