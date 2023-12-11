@@ -17,7 +17,7 @@ def is_convertible_to_float(value):
         return True
     except ValueError:
         return False
-    
+
 #  select folder
 def get_folder_path(folder=r".\data\Kernels"):
     if folder is None:
@@ -44,7 +44,7 @@ def select_files(init_dir=None):
     return file_paths
 
 
-def save_file(file=None,folder = r".\data\Kernels"):
+def save_file(file=None, folder=r".\data\Kernels"):
     root = tk.Tk()
 
     # Show the save file dialog
@@ -85,7 +85,7 @@ def create_dataset(folder=None):
 
 
 def united_frame(folder):
-    
+
     if folder is None:
         print("Select folder with data")
         root = get_folder_path(folder)
@@ -204,7 +204,7 @@ def merge(files=None, folder=None):
         df.columns = [float(col) if is_convertible_to_float(
             col) else col for col in df.columns]
         df_total = pd.concat([df_total, df], axis=0)
-    
+
     if not folder:
         filename = save_file(f"{asset_type}_merged.csv")
     else:

@@ -21,12 +21,6 @@ sys.path.append(os.getcwd())
 from analysis.FDA import Sample
 
 
-# asset = "1"
-# label = "VF-2_1"
-# key = 'top'
-# plt.ion()
-
-
 # Constants
 ASSET_CHOICES = {'1': 'VF-2', '2': 'UR', '3': 'Prusa', '4': 'Bambu'}
 FIGURES_DIR = "analysis/figures"
@@ -117,7 +111,8 @@ def l2_errors(fd_dict, train_ind, test_ind, key, target_idx, label):
     test = fd_dict[key][test_ind]
     typ = label[:-2] if "UR" not in label else "UR"
     # Check if a model for the given label and key has already been saved to avoid re-fitting
-    model_name = os.path.join(os.path.dirname(DATA_FILES[typ]),label,f"{label}_{key}_fpca.pkl")
+    model_name = os.path.join(os.path.dirname(
+        DATA_FILES[typ]), label, f"{label}_{key}_fpca.pkl")
     if not os.path.exists(model_name):
         # If the model doesn't exist, fit a new FPCA (Functional Principal Component Analysis) model on target index data
         print(f"Fitting FPCA to train {label} {key} data")
@@ -210,7 +205,8 @@ def main(label, fd_dict, labels, unique_labels, indices):
 
 def confusion_matrix(train_scores, test_scores, y_test, label, err_thresh=None):
 
-    err_thresh = error_threshold(train_scores) if err_thresh is None else err_thresh
+    err_thresh = error_threshold(
+        train_scores) if err_thresh is None else err_thresh
 
     act_pos = np.where(y_test != label)[0]
     act_neg = np.where(y_test == label)[0]

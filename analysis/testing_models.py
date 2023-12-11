@@ -1,15 +1,16 @@
+import numpy as np
+from skfda.preprocessing.dim_reduction import FPCA
+from skfda.misc.metrics import l2_distance, l2_norm
+import matplotlib.pyplot as plt
+import pandas as pd
 import os
 import sys
+
 sys.path.append(os.getcwd())
-from data.merge_X_all import folders_to_process
-from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
-from data.read_merge_align_write import select_files
 from analysis.FDA import Sample
-import pandas as pd
-import matplotlib.pyplot as plt
-from skfda.misc.metrics import l2_distance, l2_norm
-from skfda.preprocessing.dim_reduction import FPCA
-import numpy as np
+from data.read_merge_align_write import select_files
+from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
+from data.merge_X_all import folders_to_process
 
 
 plt.ion()
@@ -29,10 +30,12 @@ def plot_errors():
     fd = sample.FData()
 
     assets = sample['asset'].unique()
-    asset_indices = {asset: np.where(sample['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
+    # Get indices of rows corresponding to assets
+    asset_indices = {asset: np.where(sample['asset'] == asset)[
+        0] for asset in assets}
 
     models = {}
-    results = {asset:{'old':[], 'new':[]} for asset in assets}
+    results = {asset: {'old': [], 'new': []} for asset in assets}
     for asset in assets:
         total_error, thresh = apply_models(file, folder, fd, models, asset)
         n = 1
@@ -41,8 +44,9 @@ def plot_errors():
 
             mean_err = np.array(err).mean(axis=0)
             min_thresh = min(thresh[version])
-            results[asset][version] = min_thresh - mean_err[asset_indices[asset]]
-            
+            results[asset][version] = min_thresh - \
+                mean_err[asset_indices[asset]]
+
             plt.subplot(2, 1, n)
             plt.title(" ".join([asset, version, "model"]))
             plt.plot(mean_err, "o")
@@ -62,6 +66,8 @@ def plot_errors():
     return results
 
 #  TODO: check this function
+
+
 def apply_models(file, folder, fd, models, asset):
     folder_list = folders_to_process(
         asset[:-2]) if "UR" not in asset else folders_to_process("UR")
@@ -79,7 +85,8 @@ def apply_models(file, folder, fd, models, asset):
                 break
             else:
                 print("Training model for", asset, folder_name)
-                train_model(os.path.join(r".\data\Kernels", folder_name, asset,f"/{asset}_merged_new.csv"))
+                train_model(os.path.join(r".\data\Kernels",
+                            folder_name, asset, f"/{asset}_merged_new.csv"))
                 new_model_dir = folder_name
                 break
         print("Using model from", asset, new_model_dir)
@@ -104,10 +111,12 @@ def apply_models(file, folder, fd, models, asset):
         total_error["new"].append(new_err)
     return total_error, thresh
 
+
 def find_updated_model_dir(file):
     asset = os.path.dirname(file).split("\\")[-1]
     model_dir = None
-    folders = folders_to_process(asset[:-2]) if "UR" not in asset else folders_to_process("UR")
+    folders = folders_to_process(
+        asset[:-2]) if "UR" not in asset else folders_to_process("UR")
     fin_idx = folders.index(file.split("\\")[-3])
     for folder in folders[:fin_idx][::-1]:
         model_dir = os.path.join(r'.\data\Kernels', folder, asset)
@@ -117,11 +126,14 @@ def find_updated_model_dir(file):
         print("No training data found")
         return
 
+
 def apply_model(file, model_dir=None, model="fpca"):
     df = pd.read_csv(file)
     # get indices of labels
     assets = df['asset'].unique()
-    asset_indices = {asset: np.where(df['asset'] == asset)[0] for asset in assets}  # Get indices of rows corresponding to assets
+    # Get indices of rows corresponding to assets
+    asset_indices = {asset: np.where(df['asset'] == asset)[
+        0] for asset in assets}
     if model.lower() == "fpca":
         sample = Sample(df)
         fd = sample.FData()
@@ -132,25 +144,27 @@ def apply_model(file, model_dir=None, model="fpca"):
 
     if not model_dir:
         model_dir = find_updated_model_dir(file)
-    
-    result = {asset:{'scores':[], 'threshold':[]} for asset in assets}
+
+    result = {asset: {'scores': [], 'threshold': []} for asset in assets}
     for model_name in [m for m in os.listdir(model_dir) if f"{model}.pkl" in m]:
         model_path = os.path.join(model_dir, model_name)
         print("Using model", model_path)
         saved_model = load_model(model_path)
-        scores = predict_error(saved_model, fd[model_path.split("_")[-2]]) if model == "fpca" else 1/saved_model['model'].score_samples(sample) 
+        scores = predict_error(saved_model, fd[model_path.split(
+            "_")[-2]]) if model == "fpca" else 1/saved_model['model'].score_samples(sample)
         for i in asset_indices:
             result[i]['scores'].append(scores[asset_indices[i]])
             result[i]['threshold'].append(saved_model["threshold"])
-            
+
     return result
+
 
 def test_new_data(file=None):
     if file is None:
         print("Select the file to test")
         file = select_files(r".\data\Kernels")[0]
         print("Selected file is ", file)
-    
+
     result = apply_model(file)
     asset = list(result.keys())[0]
 

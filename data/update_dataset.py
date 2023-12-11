@@ -5,9 +5,9 @@ import os
 
 # Get the path of the parent directory of the current working directory
 sys.path.append(os.getcwd())
-from data.read_merge_align_write import select_files
-from analysis.FDA import is_convertible_to_float
 from data.merge_X_all import folders_to_process, START
+from analysis.FDA import is_convertible_to_float
+from data.read_merge_align_write import select_files
 
 
 def update(old=None, new=None):
@@ -40,6 +40,7 @@ def update(old=None, new=None):
     filename = new_dir+f"/{asset_type}_merged_new.csv"
     df.to_csv(filename, index=False)
     print("saved to ", filename)
+
 
 def main(force=False):
     folder_list = folders_to_process("VF-2")

@@ -2,10 +2,11 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+
 sys.path.append(os.getcwd())
-from analysis.testing_models import apply_model, find_updated_model_dir
-from data.merge_X_all import START, folders_to_process
 from analysis.plot_errors_from_FDA import load_model
+from data.merge_X_all import START, folders_to_process
+from analysis.testing_models import apply_model, find_updated_model_dir
 
 
 def process_data(model, asset, version):
@@ -73,7 +74,8 @@ def plot_results(model, asset, n, version):
         thresh_per_day = np.repeat(threshold, 3)
         plt.plot(days, thresh_per_day, label="Updated threshold",
                  color="black", linestyle="--")
-        plt.title(f"Scores for {asset} updated {model.upper()} models on new data")
+        plt.title(
+            f"Scores for {asset} updated {model.upper()} models on new data")
 
     plt.xlabel("Days")
     plt.ylabel("L2 error")
@@ -101,4 +103,5 @@ ASSETS = {"VF-2": ["VF-2_1", "VF-2_2"], "UR": ["UR10e_A",
 if __name__ == "__main__":
     prog = input("Model to run:\n1. old\n2. updated\n>> ")
     model = input("Model to run:\n1. FPCA\n2. OCSVM\n>> ")
-    model_performance('fpca' if model == '1' else 'ocsvm', "old" if prog == "1" else "updated")
+    model_performance('fpca' if model == '1' else 'ocsvm',
+                      "old" if prog == "1" else "updated")

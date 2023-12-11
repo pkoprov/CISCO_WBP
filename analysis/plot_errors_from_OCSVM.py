@@ -15,16 +15,19 @@ plt.ion()
 
 
 def plot_scores(labels, unique_labels, label, train_ind, test_ind, y_test, test_scores, train_scores, test_target_scores):
-    plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_scores, train_scores, '')
+    plot_errors(labels, unique_labels, label, train_ind,
+                test_ind, y_test, test_scores, train_scores, '')
     # remove line that has label "threshold"
     ax = plt.gca()  # Get current axes
     for child in ax.get_children():
         if child.get_label() == 'threshold':
             child.remove()
-    perc =80
+    perc = 80
     threshold = np.percentile(test_target_scores, perc)
-    plt.title(f"OCSVM performance for {label} with {perc}th perentile threshold")
-    plt.axhline(threshold, color='red', linestyle = '--', label='threshold')
+    plt.title(
+        f"OCSVM performance for {label} with {perc}th perentile threshold")
+    plt.axhline(threshold, color='red', linestyle='--', label='threshold')
+
 
 def main(label, sample, labels, unique_labels, indices):
 
@@ -35,9 +38,10 @@ def main(label, sample, labels, unique_labels, indices):
     y_test = labels.loc[test_ind].values
 
     typ = label[:-2] if "UR" not in label else "UR"
-    model_name = os.path.join(os.path.dirname(DATA_FILES[typ]),label,f"{label}_ocsvm.pkl")
+    model_name = os.path.join(os.path.dirname(
+        DATA_FILES[typ]), label, f"{label}_ocsvm.pkl")
     ocsvm = load_model(model_name)['model']
-    scores= 1/ocsvm.score_samples(sample.drop(["asset"], axis=1))
+    scores = 1/ocsvm.score_samples(sample.drop(["asset"], axis=1))
 
     train_scores = scores[train_ind]
     test_scores = scores[test_ind]
@@ -48,14 +52,16 @@ def main(label, sample, labels, unique_labels, indices):
     gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
     plt.subplot(gs[0])
 
-      
-    plot_scores(labels, unique_labels, label, train_ind, test_ind, y_test, test_scores, train_scores, test_target_scores)
+    plot_scores(labels, unique_labels, label, train_ind, test_ind,
+                y_test, test_scores, train_scores, test_target_scores)
 
-    gs_right = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[1], hspace=0.4)
+    gs_right = gridspec.GridSpecFromSubplotSpec(
+        2, 1, subplot_spec=gs[1], hspace=0.4)
 
     # Upper plot for confusion matrix
     plt.subplot(gs_right[0])
-    cm = confusion_matrix(test_target_scores, test_scores, y_test, label, threshold)
+    cm = confusion_matrix(test_target_scores, test_scores,
+                          y_test, label, threshold)
     plot_confusion_matrix(cm)
     # Lower plot for metrics
     ax_met = plt.subplot(gs_right[1])
@@ -72,6 +78,7 @@ def main(label, sample, labels, unique_labels, indices):
 
 def wrapper_plot_basis(label, sample, labels, unique_labels, indices):
     return main(label, sample, labels, unique_labels, indices)
+
 
 if __name__ == '__main__':
     asset = input("""

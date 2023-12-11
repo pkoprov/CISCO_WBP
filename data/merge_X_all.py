@@ -1,3 +1,4 @@
+
 import sys
 import os
 import re
@@ -6,7 +7,9 @@ import re
 sys.path.append(os.getcwd())
 from data.read_merge_align_write import create_dataset
 
-START = {"VF-2": "2023_11_18", "UR": "2023_11_21", "Bambu": "2023_11_25", "Prusa": r"data\Kernels\PRUSA\Prusa_merged.csv"}
+
+START = {"VF-2": "2023_11_18", "UR": "2023_11_21",
+         "Bambu": "2023_11_25", "Prusa": r"data\Kernels\PRUSA\Prusa_merged.csv"}
 
 
 def folders_to_process(typ):
