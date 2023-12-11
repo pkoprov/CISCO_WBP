@@ -1,5 +1,4 @@
 import os
-import pickle
 import sys
 import pandas as pd
 import numpy as np
@@ -8,8 +7,8 @@ from sklearn.model_selection import GridSearchCV,train_test_split
 sys.path.append(os.getcwd())
 from data.merge_X_all import folders_to_process, START
 from analysis.testing_models import train_model
-from analysis.read_merge_align_write import select_files
-from analysis.plot_errors_from_FDA import confusion_matrix, load_model, save_model
+from data.read_merge_align_write import select_files
+from analysis.plot_errors_from_FDA import confusion_matrix, save_model
 
 
 

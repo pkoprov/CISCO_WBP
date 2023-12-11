@@ -5,7 +5,7 @@ import os
 # Get the path of the parent directory of the current working directory
 sys.path.append(os.getcwd())
 from data.merge_X_all import folders_to_process
-from analysis.read_merge_align_write import merge
+from data.read_merge_align_write import merge
 
 
 def main(force=False):

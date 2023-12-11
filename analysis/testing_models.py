@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.getcwd())
 from data.merge_X_all import folders_to_process
 from analysis.plot_errors_from_FDA import load_model, save_model, error_threshold
-from analysis.read_merge_align_write import select_files
+from data.read_merge_align_write import select_files
 from analysis.FDA import Sample
 import pandas as pd
 import matplotlib.pyplot as plt

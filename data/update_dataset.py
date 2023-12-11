@@ -5,7 +5,7 @@ import os
 
 # Get the path of the parent directory of the current working directory
 sys.path.append(os.getcwd())
-from analysis.read_merge_align_write import select_files
+from data.read_merge_align_write import select_files
 from analysis.FDA import is_convertible_to_float
 from data.merge_X_all import folders_to_process, START
 
