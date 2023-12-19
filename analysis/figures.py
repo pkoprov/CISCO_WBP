@@ -20,7 +20,7 @@ fd_dict = sample.FData()
 
 # Figure 5
 # Plotting the curves in separate subplots
-fig, axs = plt.subplots(len(unique_labels), 1, figsize=(10, 5))
+fig, axs = plt.subplots(len(unique_labels), 1, figsize=(8, 7.5))
 
 
 for i, label in enumerate(unique_labels):
@@ -60,23 +60,24 @@ plt.title(f"Mean train {key} curve for {label}")
 plt.legend(loc='best')
 plt.subplot(312)
 n = np.random.choice(test_ind[y_test != label])
-test[n].plot(plt.gca(), label=f"original curve", color="blue")
-test_hat[n].plot(plt.gca(), label=f"reconstructed curve", color='red')
+test[test_ind.get_loc(n)].plot(plt.gca(), label=f"original curve", color="blue")
+test_hat[test_ind.get_loc(n)].plot(plt.gca(), label=f"reconstructed curve", color='red')
 plt.title(
-    f"Random test {key} curve ({labels[test_ind[n]]}) projected on {label} {key} curve FPC")
+    f"Random test {key} curve ({labels[n]}) projected on {label} {key} curve FPC")
 plt.legend(loc='best')
 plt.subplot(313)
 n = np.random.choice(test_ind[y_test == label])
-test[n].plot(plt.gca(), label=f"original curve", color="blue")
-test_hat[n].plot(plt.gca(), label=f"reconstructed curve", color='orange')
+test[test_ind.get_loc(n)].plot(plt.gca(), label=f"original curve", color="blue")
+test_hat[test_ind.get_loc(n)].plot(plt.gca(), label=f"reconstructed curve", color='orange')
 plt.title(
-    f"Random test {key} curve ({labels[test_ind[n]]}) projected on {label} {key} curve FPC")
+    f"Random test {key} curve ({labels[n]}) projected on {label} {key} curve FPC")
 plt.legend(loc='best')
 plt.tight_layout()
 
 
+plt.figure(figsize=(6.5, 5))
 #  plot data that has been impacted by load/noize
-for asset in ["VF-2_1", "UR10e_A", "UR5e_N", "Bambu_M"]:
+for n, asset in enumerate(["VF-2_1", "UR10e_A", "UR5e_N", "Bambu_M"]):
     match asset:
         case "VF-2_1":
             file = r"data\Kernels\2023_12_08\VF-2_1\with payload\merged_X.csv"
@@ -105,14 +106,16 @@ for asset in ["VF-2_1", "UR10e_A", "UR5e_N", "Bambu_M"]:
     errors_wo_load_o = {asset: np.mean(result_wo_load[asset]["scores"], axis=0) for asset in [
         key for key in result_wo_load.keys()]}
 
-    plt.figure(figsize=(8, 3))
-    plt.plot(errors_w_load, 'v', label=f"{asset} with payload", color="blue")
+    plt.subplot(2,2,n+1)
+    payload = "payload" if asset != "Bambu_M" else "noize"
+    plt.plot(errors_w_load, 'v', label=f"{asset} with {payload}", color="blue")
     plt.plot(errors_wo_load_a, 'o', fillstyle="none",
-             label=f" {asset} without payload", color="blue")
+             label=f" {asset} without {payload}", color="blue")
     [plt.plot(errors_wo_load_o[asset], 'o',
-              label=f"{asset} without payload", color="red") for asset in errors_wo_load_o]
+              label=f"{asset} without {payload}", color="red") for asset in errors_wo_load_o]
     plt.axhline(model_threshold, color="black", label="threshold")
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     plt.title(
-        f"Errors for {asset} with and without payload using updated model")
-    plt.tight_layout()
+        f"Errors for {asset} with and\nwithout {payload} using updated model")
+    # plt.tight_layout()
+plt.tight_layout()

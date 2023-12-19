@@ -73,7 +73,7 @@ def plot_results(model, asset, n, version):
         threshold = np.array(results[asset]['threshold'])
         thresh_per_day = np.repeat(threshold, 3)
         plt.plot(days, thresh_per_day, label="Updated threshold",
-                 color="black", linestyle="--")
+                 color="green", linestyle="--")
         plt.title(
             f"Scores for {asset} updated {model.upper()} models on new data")
 
@@ -89,7 +89,7 @@ def model_performance(model, version):
         "Which asset do you want to plot?\n1. VF-2\n2. UR\n3. Bambu\n>> ")
     typ = list(ASSETS.keys())[int(cmd)-1]
 
-    plt.figure(figsize=[10, 2.5*len(ASSETS[typ])])
+    plt.figure(figsize=[7, 2*len(ASSETS[typ])])
     for n, asset in enumerate(ASSETS[typ]):
         plot_results(model, asset, n, version)
 

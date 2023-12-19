@@ -92,10 +92,10 @@ def plot_errors(labels, unique_labels, label, train_ind, test_ind, y_test, test_
                  2 for i in range(len(vlines) - 1)]
     y_pos = plt.gca().get_ylim()[1]  # Slightly below the top edge
 
-    for mid, label in zip(midpoints, unique_labels):
-        plt.text(mid, y_pos, label, ha='center', va='bottom')
-    plt.vlines(vlines[1:-1], plt.gca().get_ylim()[0], plt.gca().get_ylim()[
-               1], color='black', linestyle='--')
+    # for mid, label in zip(midpoints, unique_labels):
+    #     plt.text(mid, y_pos, label, ha='center', va='bottom', fontsize=10)
+    # plt.vlines(vlines[1:-1], plt.gca().get_ylim()[0], plt.gca().get_ylim()[
+    #            1], color='black', linestyle='--')
 
 
 def l2_errors_threaded(results_dict, fd_dict, train_ind, test_ind, key, target_idx, label):
@@ -174,8 +174,8 @@ def main(label, fd_dict, labels, unique_labels, indices):
     train_scores = np.mean(both['train'], axis=0)
     test_scores = np.mean(both['test'], axis=0)
 
-    plt.figure(figsize=[10, 5])
-    gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
+    plt.figure(figsize=[7, 3])
+    gs = gridspec.GridSpec(1, 2, width_ratios=[7, 3])
     plt.subplot(gs[0])
 
     plot_errors(labels, unique_labels, label, train_ind, test_ind,
@@ -195,12 +195,12 @@ def main(label, fd_dict, labels, unique_labels, indices):
     met = metrics(cm)  # Calculate metrics
     # Display metrics using text
     metrics_text = f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}"
-    ax_met.text(0.5, 0.5, metrics_text, horizontalalignment='center',
-                verticalalignment='center', transform=ax_met.transAxes, fontsize=12)
+    ax_met.text(0.5, 0.4, metrics_text, horizontalalignment='center',
+                verticalalignment='center', transform=ax_met.transAxes, fontsize=10)
     ax_met.axis('off')  # Optionally turn off axis if not needed
 
     plt.tight_layout()
-    plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1.png")
+    plt.savefig(f"{FIGURES_DIR}\{label}_both_FPCA1.svg")
 
 
 def confusion_matrix(train_scores, test_scores, y_test, label, err_thresh=None):
@@ -246,14 +246,14 @@ def plot_confusion_matrix(cm):
 
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
-    plt.xticks([0, 1], ['Positive', 'Negative'])
-    plt.yticks([0, 1], ['Positive', 'Negative'])
+    plt.xticks([0, 1], ['Positive', 'Negative'], fontsize=8)
+    plt.yticks([0, 1], ['Positive', 'Negative'],fontsize=8)
 
     thresh = cm.max() / 2
 
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, cm[i, j],
-                 horizontalalignment="center", fontsize=12,
+                 horizontalalignment="center", fontsize=10,
                  color="white" if cm[i, j] > thresh else "black")
 
     plt.vlines(0.5, 1.5, 0.5, color='black')
