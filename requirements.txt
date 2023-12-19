@@ -4,3 +4,7 @@ scipy
 pandas
 scikit-learn
 scikit-fda
+mpu9250_jmdev
+tqdm
+pickle
+tkinter

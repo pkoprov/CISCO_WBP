@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import skfda
 from skfda.representation.basis import BSpline
-from tqdm import tqdm
 from skfda.misc.metrics import l2_distance, l2_norm
+from tqdm import tqdm
 import warnings
 
 # Suppress all UserWarnings
