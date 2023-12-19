@@ -11,9 +11,6 @@ sys.path.append(os.getcwd())
 from analysis.plot_errors_from_FDA import *
 
 
-plt.ion()
-
-
 def plot_scores(labels, unique_labels, label, train_ind, test_ind, y_test, test_scores, train_scores, test_target_scores):
     plot_errors(labels, unique_labels, label, train_ind,
                 test_ind, y_test, test_scores, train_scores, '')
@@ -25,7 +22,7 @@ def plot_scores(labels, unique_labels, label, train_ind, test_ind, y_test, test_
     perc = 80
     threshold = np.percentile(test_target_scores, perc)
     plt.title(
-        f"OCSVM performance for {label} with {perc}th perentile threshold")
+        f"OCSVM performance for {label} {perc}th perentile threshold")
     plt.axhline(threshold, color='red', linestyle='--', label='threshold')
 
 
@@ -48,8 +45,8 @@ def main(label, sample, labels, unique_labels, indices):
     test_target_scores = test_scores[y_test == label]
     threshold = np.percentile(test_target_scores, 80)
 
-    plt.figure(figsize=[10, 5])
-    gs = gridspec.GridSpec(1, 2, width_ratios=[7, 2.5])
+    plt.figure(figsize=[7, 3])
+    gs = gridspec.GridSpec(1, 2, width_ratios=[7, 3])
     plt.subplot(gs[0])
 
     plot_scores(labels, unique_labels, label, train_ind, test_ind,
@@ -68,12 +65,12 @@ def main(label, sample, labels, unique_labels, indices):
     met = metrics(cm)  # Calculate metrics
     # Display metrics using text
     metrics_text = f"Sensitivity: {met[0]:.2f}\nSpecificity: {met[1]:.2f}\nPrecision: {met[2]:.2f}\nF1: {met[3]:.2f}"
-    ax_met.text(0.5, 0.5, metrics_text, horizontalalignment='center',
-                verticalalignment='center', transform=ax_met.transAxes, fontsize=12)
+    ax_met.text(0.5, 0.4, metrics_text, horizontalalignment='center',
+                verticalalignment='center', transform=ax_met.transAxes, fontsize=10)
     ax_met.axis('off')  # Optionally turn off axis if not needed
 
     plt.tight_layout()
-    plt.savefig(f"{FIGURES_DIR}\{label}_OCSVM.png")
+    plt.savefig(f"{FIGURES_DIR}\{label}_OCSVM.svg")
 
 
 def wrapper_plot_basis(label, sample, labels, unique_labels, indices):
